@@ -1,0 +1,159 @@
+/* ==========================================================================
+   CannaSur AR — Calculadora & Asistente de Cultivo (Hemisferio Sur)
+   Estilos personalizados complementarios a Tailwind CSS
+   ========================================================================== */
+
+:root {
+  --bg-deep: #060b08;
+  --bg-surface: #0d1611;
+  --bg-elevated: #132019;
+  --border-subtle: rgba(52, 211, 153, 0.14);
+  --border-strong: rgba(52, 211, 153, 0.35);
+  --accent-emerald: #10b981;
+  --accent-lime: #84cc16;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background-color: var(--bg-deep);
+  color: #ecfdf5;
+}
+
+body {
+  background-color: var(--bg-deep);
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(16, 185, 129, 0.12) 0%, transparent 42%),
+    radial-gradient(circle at 88% 12%, rgba(132, 204, 22, 0.08) 0%, transparent 36%),
+    radial-gradient(circle at 50% 100%, rgba(16, 185, 129, 0.07) 0%, transparent 45%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  padding-bottom: calc(5.5rem + var(--safe-bottom));
+}
+
+/* Superficies tipo cristal oscuro botánico */
+.glass-card {
+  background: linear-gradient(165deg, rgba(16, 28, 21, 0.92) 0%, rgba(10, 18, 14, 0.95) 100%);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.glass-card-highlight {
+  background: linear-gradient(155deg, rgba(16, 185, 129, 0.13) 0%, rgba(13, 23, 18, 0.96) 65%);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 14px 36px -12px rgba(16, 185, 129, 0.18), inset 0 1px 0 rgba(52, 211, 153, 0.15);
+}
+
+/* Navegación inferior con soporte Safe Area iOS/Android */
+.bottom-nav-shell {
+  padding-bottom: max(0.5rem, var(--safe-bottom));
+  background: rgba(8, 14, 11, 0.9);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(52, 211, 153, 0.16);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
+}
+
+.nav-tab-btn {
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nav-tab-btn.active {
+  color: #34d399;
+}
+
+.nav-tab-btn.active .nav-pill {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(52, 211, 153, 0.35);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+}
+
+/* Animación suave de cambio de vista */
+.view-section {
+  display: none;
+  animation: viewFadeIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.view-section.active {
+  display: block;
+}
+
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Ocultar flechas nativas en inputs numéricos */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Scrollbar sutil horizontal y vertical */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(6, 11, 8, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(52, 211, 153, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(52, 211, 153, 0.45);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Brillo lunar */
+.moon-svg-glow {
+  filter: drop-shadow(0 0 18px rgba(226, 232, 240, 0.22));
+}
+
+/* Estilos de impresión directa como respaldo de PDF offline */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding-bottom: 0 !important;
+  }
+  header,
+  nav,
+  #export-modal,
+  .no-print {
+    display: none !important;
+  }
+  #print-fallback-sheet {
+    display: block !important;
+    color: #0f172a !important;
+    background: #ffffff !important;
+  }
+  main {
+    display: none !important;
+  }
+}
