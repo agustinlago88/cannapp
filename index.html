@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#080c0a" />
+  <meta name="theme-color" content="#000000" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="description" content="Bitácora de cultivo de cannabis y asistente agronómico offline para Argentina (Hemisferio Sur)." />
-  <title>CannaSur — Bitácora &amp; Asistente de Cultivo</title>
+  <meta name="description" content="Bitácora de cultivo de cannabis y notas de jardín. Minimalista, offline y orgánica." />
+  <title>CannaSur — Bitácora de Cultivo</title>
 
-  <!-- Tipografía: Plus Jakarta Sans y JetBrains Mono -->
+  <!-- Tipografía Apple System / Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -22,16 +22,14 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', '"Plus Jakarta Sans"', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace']
           },
           colors: {
-            canna: {
-              950: '#060907',
-              900: '#090e0b',
-              850: '#0d1310',
-              800: '#121a15',
-              700: '#1a261f'
+            neutral: {
+              850: '#1f1f23',
+              900: '#141416',
+              950: '#0a0a0c'
             }
           }
         }
@@ -39,49 +37,43 @@
     };
   </script>
 
-  <!-- jsPDF para exportar reportes en PDF -->
+  <!-- jsPDF para exportar reportes -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 
-  <!-- Estilos Minimalistas -->
+  <!-- Estilos Apple-Like Minimalistas -->
   <link rel="stylesheet" href="./styles.css" />
 </head>
-<body class="bg-[#080c0a] text-slate-100 antialiased selection:bg-emerald-500/20 selection:text-emerald-300">
+<body class="bg-black text-white antialiased selection:bg-white selection:text-black">
 
   <!-- =====================================================================
-       TOP APP BAR
+       TOP APP BAR (Estilo iOS Translucent)
        ===================================================================== -->
-  <header class="sticky top-0 z-30 border-b border-emerald-500/10 bg-[#080c0a]/90 backdrop-blur-md">
-    <div class="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
-      <!-- Identidad de la App -->
+  <header class="sticky top-0 z-30 border-b border-white/[0.06] bg-black/80 backdrop-blur-xl">
+    <div class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+      <!-- Título de la App -->
       <div class="flex items-center gap-2.5">
-        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2C9.5 6.5 8 9.5 8 13a4 4 0 0 0 8 0c0-3.5-1.5-6.5-4-11Z"/>
-            <path d="M12 17c-3.5-2.5-6.5-3-9.5-2 1.5 3 4.5 4.5 9.5 4.5"/>
-            <path d="M12 17c3.5-2.5 6.5-3 9.5-2-1.5 3-4.5 4.5-9.5 4.5"/>
-            <path d="M12 17v5"/>
-          </svg>
+        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-black font-extrabold text-sm shadow-sm">
+          🌱
         </div>
         <div>
-          <h1 class="text-base font-extrabold tracking-tight text-white flex items-center gap-1.5">
+          <h1 class="text-base font-bold tracking-tight text-white leading-tight">
             CannaSur
-            <span class="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-500/20">PWA</span>
           </h1>
-          <p id="top-bar-subtext" class="text-[11px] text-slate-400">Bitácora de Plantas · Offline</p>
+          <p id="top-bar-subtext" class="text-[11px] text-neutral-400">Bitácora de Plantas</p>
         </div>
       </div>
 
-      <!-- Acciones de Cabecera Dinámicas -->
+      <!-- Acciones de Cabecera -->
       <div class="flex items-center gap-2">
         <button id="btn-top-new-plant" type="button"
-          class="touch-btn btn-primary text-xs !py-2 !px-3.5 !min-h-[2.35rem]">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          class="ios-btn ios-btn-primary text-xs !py-1.5 !px-3.5 !min-h-[2.1rem]">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           <span>Nueva Planta</span>
         </button>
 
         <button id="btn-open-export" type="button"
-          class="hidden sm:inline-flex touch-btn btn-secondary text-xs !py-2 !px-3 !min-h-[2.35rem]" title="Exportar reporte de cultivo">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          class="hidden sm:inline-flex ios-btn ios-btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.1rem]" title="Exportar ficha técnica">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span>Exportar</span>
         </button>
       </div>
@@ -89,539 +81,463 @@
   </header>
 
   <!-- =====================================================================
-       MAIN VIEW CONTAINER
+       CONTENEDOR PRINCIPAL
        ===================================================================== -->
-  <main class="mx-auto max-w-4xl px-3.5 pt-4 pb-6 sm:px-4">
+  <main class="mx-auto max-w-3xl px-4 pt-4 pb-8">
 
     <!-- ===================================================================
-         VISTA 1: GROWLOGS (BITÁCORA CENTRAL - INSPIRADO EN GROW WITH JANE)
+         VISTA 1: BITÁCORA DE PLANTAS (GROWLOGS CENTRAL)
          =================================================================== -->
-    <section id="view-growlogs" class="app-view active space-y-4" aria-label="Bitácora de Cultivo">
+    <section id="view-growlogs" class="app-view active space-y-5" aria-label="Bitácora">
 
-      <!-- SUBVISTA A: DASHBOARD DE PLANTAS (Lista / Cards) -->
+      <!-- SUBVISTA A: DASHBOARD DE PLANTAS (COLECCIÓN ESTILO APPLE JOURNAL) -->
       <div id="growlogs-dashboard-container" class="space-y-4">
-        <!-- Barra de Estado y Resumen -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 app-card p-3.5 sm:p-4">
-          <div class="flex items-center gap-4">
-            <div>
-              <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Cultivo Activo</span>
-              <div class="flex items-baseline gap-2 mt-0.5">
-                <span id="stat-total-plants" class="font-mono text-2xl font-extrabold text-white">0</span>
-                <span class="text-xs text-slate-400">plantas registradas</span>
-              </div>
-            </div>
-            <div class="h-8 w-px bg-emerald-500/15"></div>
-            <div class="flex gap-3 text-xs">
-              <div>
-                <span class="text-[10px] text-slate-400 uppercase font-semibold">Vegetativo</span>
-                <div id="stat-veg-plants" class="font-mono font-bold text-emerald-300">0</div>
-              </div>
-              <div>
-                <span class="text-[10px] text-slate-400 uppercase font-semibold">Floración</span>
-                <div id="stat-flower-plants" class="font-mono font-bold text-pink-400">0</div>
-              </div>
-            </div>
+        <!-- Encabezado Amigable -->
+        <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pt-1">
+          <div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Mi Jardín</h2>
+            <p class="text-xs text-neutral-400 mt-0.5">Seguimiento individual, notas diarias y fotos de tus plantas.</p>
           </div>
 
-          <!-- Filtro de Plantas -->
-          <div class="flex items-center gap-1 overflow-x-auto no-scrollbar" id="plants-stage-filters">
-            <button type="button" data-plant-filter="all" class="rounded-lg px-2.5 py-1 text-xs font-semibold bg-emerald-500/20 text-emerald-200 border border-emerald-500/30">Todas</button>
-            <button type="button" data-plant-filter="vegetativo" class="rounded-lg px-2.5 py-1 text-xs font-semibold bg-canna-900 text-slate-400 hover:text-white border border-emerald-500/10">Vegetativo</button>
-            <button type="button" data-plant-filter="floracion" class="rounded-lg px-2.5 py-1 text-xs font-semibold bg-canna-900 text-slate-400 hover:text-white border border-emerald-500/10">Floración</button>
-            <button type="button" data-plant-filter="cosecha" class="rounded-lg px-2.5 py-1 text-xs font-semibold bg-canna-900 text-slate-400 hover:text-white border border-emerald-500/10">Cosecha</button>
+          <!-- Métricas Resumen -->
+          <div class="flex items-center gap-2 text-xs">
+            <span class="badge-mono"><strong id="stat-total-plants" class="font-mono">0</strong> plantas</span>
+            <span class="badge-mono"><strong id="stat-veg-plants" class="font-mono text-neutral-300">0</strong> veg</span>
+            <span class="badge-mono"><strong id="stat-flower-plants" class="font-mono text-neutral-300">0</strong> flora</span>
           </div>
         </div>
 
-        <!-- Grilla de Tarjetas de Plantas -->
-        <div id="plants-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <!-- Segmented Control de Etapas (iOS Style) -->
+        <div class="ios-segmented" id="plants-stage-filters">
+          <button type="button" data-plant-filter="all" class="ios-segmented-item active">Todas</button>
+          <button type="button" data-plant-filter="vegetativo" class="ios-segmented-item">Vegetativo</button>
+          <button type="button" data-plant-filter="floracion" class="ios-segmented-item">Floración</button>
+          <button type="button" data-plant-filter="cosecha" class="ios-segmented-item">Cosecha</button>
+        </div>
+
+        <!-- Grilla de Tarjetas de Plantas (Estilo Libreta Apple) -->
+        <div id="plants-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
           <!-- Renderizado dinámicamente -->
         </div>
 
-        <!-- Estado Vacío (Empty State) -->
-        <div id="plants-empty-state" class="hidden app-card p-8 text-center space-y-4">
-          <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-2xl">
+        <!-- Estado Vacío Cálido y Amigable -->
+        <div id="plants-empty-state" class="hidden ios-card p-8 sm:p-10 text-center space-y-4">
+          <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-900 border border-white/10 text-3xl">
             🌱
           </div>
-          <div>
-            <h3 class="text-base font-bold text-white">No hay plantas en tu bitácora</h3>
-            <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1">Registrá tus plantas para llevar un control visual de riegos, fertilizaciones, podas y fotos.</p>
+          <div class="space-y-1">
+            <h3 class="text-lg font-bold text-white">Tu jardín está listo</h3>
+            <p class="text-xs text-neutral-400 max-w-sm mx-auto leading-relaxed">
+              Cuidar una planta es un arte diario. Registrá tu primera planta para empezar a llevar su bitácora de riegos, notas y fotos.
+            </p>
           </div>
-          <div class="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
-            <button type="button" id="btn-empty-add-plant" class="touch-btn btn-primary text-xs w-full sm:w-auto">
-              + Agregar Primera Planta
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
+            <button type="button" id="btn-empty-add-plant" class="ios-btn ios-btn-primary text-xs w-full sm:w-auto">
+              + Añadir Primera Planta
             </button>
-            <button type="button" id="btn-load-demo-plant" class="touch-btn btn-secondary text-xs w-full sm:w-auto">
-              Cargar Planta Demo
+            <button type="button" id="btn-load-demo-plant" class="ios-btn ios-btn-secondary text-xs w-full sm:w-auto">
+              Ver Planta de Ejemplo
             </button>
           </div>
         </div>
       </div>
 
-      <!-- SUBVISTA B: DETALLE DE PLANTA & TIMELINE VISUAL -->
+      <!-- SUBVISTA B: DIARIO DE PLANTA & TIMELINE (APPLE JOURNAL VIEW) -->
       <div id="growlogs-detail-container" class="hidden space-y-4">
-        <!-- Navegación Superior y Cabecera de Planta -->
-        <div class="flex items-center justify-between gap-2">
-          <button id="btn-back-to-plants" type="button" class="touch-btn btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.2rem]">
+        <!-- Navegación Superior -->
+        <div class="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-3">
+          <button id="btn-back-to-plants" type="button" class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.1rem]">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 18-6-6 6-6"/></svg>
-            <span>Volver a Plantas</span>
+            <span>Mi Jardín</span>
           </button>
 
           <div class="flex items-center gap-2">
-            <button id="btn-edit-plant-info" type="button" class="touch-btn btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.2rem]" title="Editar datos de planta">
+            <button id="btn-edit-plant-info" type="button" class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.1rem]">
               <span>Editar</span>
             </button>
-            <button id="btn-delete-plant" type="button" class="rounded-lg p-2 text-slate-400 hover:text-red-400 border border-emerald-500/10 hover:border-red-500/30 transition" title="Eliminar planta">
+            <button id="btn-delete-plant" type="button" class="text-neutral-500 hover:text-red-400 p-1.5 rounded-lg transition" title="Eliminar planta">
               <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
             </button>
           </div>
         </div>
 
-        <!-- Tarjeta Hero de la Planta -->
-        <div id="plant-hero-card" class="app-card p-4 sm:p-5">
-          <!-- Renderizado dinámicamente: foto de portada, días, etapa y botones de cambio -->
-        </div>
-
-        <!-- Barra de Acción Rápida para Registro de Eventos -->
-        <div class="app-card p-3.5 space-y-2.5">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Registrar Evento</span>
-            <span class="text-[11px] text-emerald-400 font-semibold">Toca para añadir</span>
-          </div>
-
-          <!-- Botón Principal Grande + Accesos Directos Táctiles -->
-          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <button type="button" data-quick-log="riego_agua"
-              class="touch-btn bg-canna-900 border border-cyan-500/25 hover:border-cyan-400 text-cyan-200 text-xs flex-col !py-2.5 !h-auto">
-              <span class="text-lg">💧</span>
-              <span class="font-bold mt-1">Riego Agua</span>
-            </button>
-
-            <button type="button" data-quick-log="riego_nutrientes"
-              class="touch-btn bg-canna-900 border border-emerald-500/25 hover:border-emerald-400 text-emerald-200 text-xs flex-col !py-2.5 !h-auto">
-              <span class="text-lg">🧪</span>
-              <span class="font-bold mt-1">Nutrientes</span>
-            </button>
-
-            <button type="button" data-quick-log="foliar"
-              class="touch-btn bg-canna-900 border border-lime-500/25 hover:border-lime-400 text-lime-200 text-xs flex-col !py-2.5 !h-auto">
-              <span class="text-lg">🌿</span>
-              <span class="font-bold mt-1">Foliar</span>
-            </button>
-
-            <button type="button" data-quick-log="poda"
-              class="touch-btn bg-canna-900 border border-purple-500/25 hover:border-purple-400 text-purple-200 text-xs flex-col !py-2.5 !h-auto">
-              <span class="text-lg">✂️</span>
-              <span class="font-bold mt-1">Poda / LST</span>
-            </button>
-
-            <button type="button" id="btn-open-full-log"
-              class="col-span-2 sm:col-span-1 touch-btn btn-primary text-xs flex-col !py-2.5 !h-auto">
-              <span class="text-lg">📝</span>
-              <span class="font-bold mt-1">+ Evento Completo</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Filtros del Timeline -->
-        <div class="flex items-center justify-between gap-2 border-b border-emerald-500/10 pb-2">
-          <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar" id="timeline-filters">
-            <button type="button" data-timeline-filter="all" class="rounded-lg px-2.5 py-1 text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Todos</button>
-            <button type="button" data-timeline-filter="riegos" class="rounded-lg px-2.5 py-1 text-xs font-semibold bg-canna-900 text-slate-400 hover:text-white border border-emerald-500/10">💧 Riegos</button>
-            <button type="button" data-timeline-filter="foliar" class="rounded-lg px-2.5 py-1 text-xs font-semibold bg-canna-900 text-slate-400 hover:text-white border border-emerald-500/10">🌿 Foliares</button>
-            <button type="button" data-timeline-filter="manejo" class="rounded-lg px-2.5 py-1 text-xs font-semibold bg-canna-900 text-slate-400 hover:text-white border border-emerald-500/10">✂️ Manejo</button>
-            <button type="button" data-timeline-filter="fotos" class="rounded-lg px-2.5 py-1 text-xs font-semibold bg-canna-900 text-slate-400 hover:text-white border border-emerald-500/10">📷 Fotos</button>
-          </div>
-          <span id="timeline-count-badge" class="font-mono text-xs text-slate-500 shrink-0">0 eventos</span>
-        </div>
-
-        <!-- Timeline Vertical de Eventos -->
-        <div id="plant-timeline-container" class="timeline-track space-y-3 pt-1">
+        <!-- Tarjeta Perfil de la Planta (Hero Apple Style) -->
+        <div id="plant-hero-card" class="ios-card p-4 sm:p-5">
           <!-- Renderizado dinámicamente -->
         </div>
 
-        <!-- Timeline Vacío -->
-        <div id="timeline-empty-state" class="hidden app-card p-6 text-center space-y-2">
-          <span class="text-3xl block">📋</span>
-          <p class="text-sm font-bold text-white">No hay eventos registrados</p>
-          <p class="text-xs text-slate-400">Usá los botones rápidos para registrar tu primer riego o poda.</p>
+        <!-- Barra de Entrada Rápida (Estilo "Escribir Nota...") -->
+        <div class="ios-card p-3.5 space-y-3">
+          <button type="button" id="btn-open-full-log"
+            class="w-full flex items-center justify-between rounded-xl bg-neutral-900 border border-white/10 px-4 py-3 text-left text-xs text-neutral-400 hover:text-white hover:border-white/20 transition">
+            <span class="flex items-center gap-2">
+              <span class="text-base">✍️</span>
+              <span class="font-medium">¿Cómo amaneció hoy? Escribir entrada o nota...</span>
+            </span>
+            <span class="text-white font-bold text-sm">+</span>
+          </button>
+
+          <!-- Botones Táctiles de Registro Rápido (1-Tap) -->
+          <div class="grid grid-cols-4 gap-1.5">
+            <button type="button" data-quick-log="riego_agua" class="ios-card p-2 text-center text-xs hover:border-white/30 transition">
+              <span class="text-base block mb-0.5">💧</span>
+              <span class="font-semibold text-[11px] text-neutral-300">Riego</span>
+            </button>
+            <button type="button" data-quick-log="riego_nutrientes" class="ios-card p-2 text-center text-xs hover:border-white/30 transition">
+              <span class="text-base block mb-0.5">🧪</span>
+              <span class="font-semibold text-[11px] text-neutral-300">Nutrientes</span>
+            </button>
+            <button type="button" data-quick-log="foliar" class="ios-card p-2 text-center text-xs hover:border-white/30 transition">
+              <span class="text-base block mb-0.5">🌿</span>
+              <span class="font-semibold text-[11px] text-neutral-300">Foliar</span>
+            </button>
+            <button type="button" data-quick-log="poda" class="ios-card p-2 text-center text-xs hover:border-white/30 transition">
+              <span class="text-base block mb-0.5">✂️</span>
+              <span class="font-semibold text-[11px] text-neutral-300">Poda</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filtros del Diario -->
+        <div class="flex items-center justify-between gap-2 pt-1">
+          <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar" id="timeline-filters">
+            <button type="button" data-timeline-filter="all" class="badge-mono badge-mono-inverted cursor-pointer">Todas</button>
+            <button type="button" data-timeline-filter="riegos" class="badge-mono cursor-pointer">💧 Riegos</button>
+            <button type="button" data-timeline-filter="foliar" class="badge-mono cursor-pointer">🌿 Foliares</button>
+            <button type="button" data-timeline-filter="manejo" class="badge-mono cursor-pointer">✂️ Manejo</button>
+            <button type="button" data-timeline-filter="fotos" class="badge-mono cursor-pointer">📷 Fotos</button>
+          </div>
+          <span id="timeline-count-badge" class="font-mono text-[11px] text-neutral-500 shrink-0">0 notas</span>
+        </div>
+
+        <!-- Entradas de la Bitácora (Journal Timeline) -->
+        <div id="plant-timeline-container" class="space-y-3 pt-1">
+          <!-- Renderizado dinámicamente -->
+        </div>
+
+        <!-- Diario Vacío -->
+        <div id="timeline-empty-state" class="hidden ios-card p-8 text-center space-y-2">
+          <span class="text-2xl block">📓</span>
+          <p class="text-sm font-bold text-white">No hay notas registradas todavía</p>
+          <p class="text-xs text-neutral-400 max-w-xs mx-auto">Usá los botones de arriba para anotar un riego, aplicación foliar o sacar una foto de hoy.</p>
         </div>
       </div>
 
     </section>
 
     <!-- ===================================================================
-         VISTA 2: CALCULADORA DE FERTILIZANTES
+         VISTA 2: RIEGO & NUTRIENTES (CALCULADORA MINIMALISTA)
          =================================================================== -->
-    <section id="view-calculadora" class="app-view space-y-4" aria-label="Calculadora de Riego">
-      <!-- Modo de Cultivo: Indoor vs Outdoor -->
-      <div class="app-card p-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Ambiente de Cultivo</span>
-            <h2 class="text-base font-bold text-white">Indoor vs. Outdoor (Hemisferio Sur)</h2>
-          </div>
-
-          <!-- Selector Segmentado -->
-          <div class="grid grid-cols-2 rounded-xl bg-canna-950 p-1 border border-emerald-500/15 sm:w-72" role="group">
-            <button type="button" data-mode-btn="indoor" class="mode-toggle-btn rounded-lg py-2 px-3 text-xs font-bold transition">
-              🏠 Indoor
-            </button>
-            <button type="button" data-mode-btn="outdoor" class="mode-toggle-btn rounded-lg py-2 px-3 text-xs font-bold transition">
-              ☀️ Outdoor AR
-            </button>
-          </div>
-        </div>
-
-        <div id="mode-timeline-container" class="mt-3.5"></div>
+    <section id="view-calculadora" class="app-view space-y-4" aria-label="Riego y Nutrición">
+      <div class="space-y-1">
+        <h2 class="text-2xl font-extrabold tracking-tight text-white">Riego &amp; Nutrición</h2>
+        <p class="text-xs text-neutral-400">Calculá los mililitros exactos de cada producto para mezclar en tu agua.</p>
       </div>
 
-      <!-- Calculadora de Riego y Mezcla -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <!-- Entrada -->
-        <div class="app-card p-4 lg:col-span-5 space-y-4 h-fit">
-          <div class="border-b border-emerald-500/10 pb-2.5">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Nutrición Mineral &amp; Orgánica</span>
-            <h3 class="text-base font-bold text-white">Preparar Agua de Riego</h3>
-          </div>
+      <!-- Segmented Mode: Outdoor vs Indoor -->
+      <div class="ios-segmented">
+        <button type="button" data-mode-btn="outdoor" class="ios-segmented-item active">☀️ Exterior (Calendario Sur)</button>
+        <button type="button" data-mode-btn="indoor" class="ios-segmented-item">🏠 Interior (Fotoperíodo 18/6 - 12/12)</button>
+      </div>
 
-          <!-- Litros -->
-          <div>
-            <div class="flex items-center justify-between mb-1.5">
-              <label for="input-liters" class="text-xs font-bold text-slate-300">1. Litros de Agua</label>
-              <span class="text-[11px] font-mono text-emerald-400">0.5 L – 500 L</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <button type="button" id="btn-liters-dec" class="touch-btn btn-secondary !p-0 w-12 h-11 text-lg">−</button>
-              <input id="input-liters" type="number" min="0.25" max="500" step="0.5" value="5" inputmode="decimal"
-                class="touch-input flex-1 text-center font-mono text-lg font-bold" />
-              <button type="button" id="btn-liters-inc" class="touch-btn btn-secondary !p-0 w-12 h-11 text-lg">+</button>
-            </div>
-            <!-- Presets -->
-            <div class="mt-2 grid grid-cols-6 gap-1" id="liters-presets">
-              <button type="button" data-liters="1" class="liter-preset-btn rounded border border-emerald-500/15 py-1 text-xs font-mono text-slate-300 hover:border-emerald-400">1L</button>
-              <button type="button" data-liters="2" class="liter-preset-btn rounded border border-emerald-500/15 py-1 text-xs font-mono text-slate-300 hover:border-emerald-400">2L</button>
-              <button type="button" data-liters="5" class="liter-preset-btn rounded border border-emerald-500/15 py-1 text-xs font-mono text-slate-300 hover:border-emerald-400">5L</button>
-              <button type="button" data-liters="10" class="liter-preset-btn rounded border border-emerald-500/15 py-1 text-xs font-mono text-slate-300 hover:border-emerald-400">10L</button>
-              <button type="button" data-liters="20" class="liter-preset-btn rounded border border-emerald-500/15 py-1 text-xs font-mono text-slate-300 hover:border-emerald-400">20L</button>
-              <button type="button" data-liters="50" class="liter-preset-btn rounded border border-emerald-500/15 py-1 text-xs font-mono text-slate-300 hover:border-emerald-400">50L</button>
-            </div>
-          </div>
+      <div id="mode-timeline-container"></div>
 
-          <!-- Selector de Marca -->
-          <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1.5">2. Marca de Fertilizante</label>
-            <select id="select-brand" class="sr-only">
-              <option value="topcrop">Top Crop</option>
-              <option value="namaste">Namaste</option>
-              <option value="kawsay">Kawsay</option>
-              <option value="advanced">Advanced Nutrients</option>
-            </select>
-            <div id="brand-cards-grid" class="grid grid-cols-2 gap-2"></div>
+      <!-- Tarjeta de Cálculo -->
+      <div class="ios-card p-4 sm:p-5 space-y-4">
+        <!-- Litros de Agua -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="input-liters" class="text-xs font-semibold text-neutral-300 uppercase tracking-wide">Litros de Agua</label>
+            <span class="font-mono text-xs text-neutral-400">0.5 L – 500 L</span>
           </div>
-
-          <!-- Selector de Etapa -->
-          <div>
-            <label for="select-stage" class="block text-xs font-bold text-slate-300 mb-1.5">3. Etapa Fenológica</label>
-            <select id="select-stage" class="touch-input w-full text-xs font-semibold">
-              <option value="plantula">🌱 Plántula (Sem 1-2)</option>
-              <option value="vegetativo">🌿 Vegetativo (Sem 3-6)</option>
-              <option value="transicion">⚡ Transición (Pre-flora / Stretch)</option>
-              <option value="flora_temprana">🌸 Floración temprana (Botones)</option>
-              <option value="flora_tardia">💎 Floración tardía (Engorde)</option>
-            </select>
-            <div id="stage-pills-container" class="mt-2 flex flex-wrap gap-1"></div>
+          <div class="flex items-center gap-2">
+            <button type="button" id="btn-liters-dec" class="ios-btn ios-btn-secondary !p-0 w-12 h-11 text-lg font-bold">−</button>
+            <input id="input-liters" type="number" min="0.25" max="500" step="0.5" value="5" inputmode="decimal"
+              class="ios-input flex-1 text-center font-mono text-xl font-bold" />
+            <button type="button" id="btn-liters-inc" class="ios-btn ios-btn-secondary !p-0 w-12 h-11 text-lg font-bold">+</button>
+          </div>
+          <!-- Presets rápidos -->
+          <div class="mt-2 grid grid-cols-6 gap-1" id="liters-presets">
+            <button type="button" data-liters="1" class="liter-preset-btn rounded-lg bg-neutral-900 border border-white/[0.08] py-1 text-xs font-mono text-neutral-300 hover:border-white/30">1L</button>
+            <button type="button" data-liters="2" class="liter-preset-btn rounded-lg bg-neutral-900 border border-white/[0.08] py-1 text-xs font-mono text-neutral-300 hover:border-white/30">2L</button>
+            <button type="button" data-liters="5" class="liter-preset-btn rounded-lg bg-neutral-900 border border-white/[0.08] py-1 text-xs font-mono text-neutral-300 hover:border-white/30">5L</button>
+            <button type="button" data-liters="10" class="liter-preset-btn rounded-lg bg-neutral-900 border border-white/[0.08] py-1 text-xs font-mono text-neutral-300 hover:border-white/30">10L</button>
+            <button type="button" data-liters="20" class="liter-preset-btn rounded-lg bg-neutral-900 border border-white/[0.08] py-1 text-xs font-mono text-neutral-300 hover:border-white/30">20L</button>
+            <button type="button" data-liters="50" class="liter-preset-btn rounded-lg bg-neutral-900 border border-white/[0.08] py-1 text-xs font-mono text-neutral-300 hover:border-white/30">50L</button>
           </div>
         </div>
 
-        <!-- Resultados -->
-        <div class="app-card p-4 lg:col-span-7 flex flex-col justify-between space-y-4">
-          <div class="space-y-3.5">
-            <div class="flex items-start justify-between border-b border-emerald-500/10 pb-3">
-              <div>
-                <h4 id="result-title" class="text-base font-bold text-white">Receta</h4>
-                <p id="result-subtitle" class="text-xs text-slate-400">Para 5 litros de agua</p>
-              </div>
-              <div class="flex gap-2">
-                <div class="rounded-lg bg-canna-950 border border-emerald-500/15 px-2.5 py-1 text-center">
-                  <span class="block text-[9px] uppercase font-bold text-slate-400">pH Ideal</span>
-                  <span id="result-ph" class="font-mono text-xs font-bold text-emerald-300">5.8 – 6.2</span>
-                </div>
-                <div class="rounded-lg bg-canna-950 border border-emerald-500/15 px-2.5 py-1 text-center">
-                  <span class="block text-[9px] uppercase font-bold text-slate-400">EC Orient.</span>
-                  <span id="result-ec" class="font-mono text-xs font-bold text-lime-300">0.8 – 1.2</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Tabla -->
-            <div class="overflow-x-auto rounded-xl border border-emerald-500/15 bg-canna-950/70">
-              <table class="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr class="border-b border-emerald-500/15 bg-canna-900/80 text-[10px] font-bold uppercase text-emerald-400/80">
-                    <th class="py-2 pl-3 pr-2">Producto</th>
-                    <th class="py-2 px-2 text-right">Dosis/L</th>
-                    <th class="py-2 px-3 text-right text-emerald-300">Mezcla Total</th>
-                  </tr>
-                </thead>
-                <tbody id="fertilizer-table-body" class="divide-y divide-emerald-500/10"></tbody>
-              </table>
-            </div>
-
-            <!-- Protocolo -->
-            <div id="mixing-protocol-box" class="rounded-xl border border-emerald-500/15 bg-canna-950/50 p-3 text-xs text-slate-300 space-y-1.5"></div>
-          </div>
-
-          <!-- Guardar en Bitácora Rápido -->
-          <div class="flex items-center justify-between gap-2 pt-2 border-t border-emerald-500/10">
-            <span class="text-[11px] text-slate-400">¿Preparaste este riego?</span>
-            <button type="button" id="btn-calc-log-to-plant" class="touch-btn btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.2rem]">
-              <span>💧 Registrar en Planta Activa</span>
-            </button>
-          </div>
+        <!-- Marca de Fertilizante -->
+        <div>
+          <label class="block text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-1.5">Línea Nutricional</label>
+          <select id="select-brand" class="sr-only">
+            <option value="topcrop">Top Crop</option>
+            <option value="namaste">Namaste</option>
+            <option value="kawsay">Kawsay</option>
+            <option value="advanced">Advanced Nutrients</option>
+          </select>
+          <div id="brand-cards-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
         </div>
+
+        <!-- Etapa -->
+        <div>
+          <label for="select-stage" class="block text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-1.5">Etapa de la Planta</label>
+          <select id="select-stage" class="ios-input w-full text-xs font-semibold">
+            <option value="plantula">🌱 Plántula (Sem 1-2)</option>
+            <option value="vegetativo">🌿 Vegetativo (Sem 3-6)</option>
+            <option value="transicion">⚡ Transición (Pre-flora)</option>
+            <option value="flora_temprana">🌸 Floración temprana</option>
+            <option value="flora_tardia">💎 Floración tardía (Engorde)</option>
+          </select>
+        </div>
+
+        <!-- Resultado y Tabla -->
+        <div class="rounded-xl border border-white/[0.08] bg-neutral-950 p-4 space-y-3">
+          <div class="flex items-baseline justify-between border-b border-white/[0.06] pb-2">
+            <div>
+              <h4 id="result-title" class="text-sm font-bold text-white">Receta</h4>
+              <p id="result-subtitle" class="text-[11px] text-neutral-400">Dosis exacta</p>
+            </div>
+            <div class="flex gap-2 text-xs font-mono">
+              <span class="text-neutral-400">pH: <strong id="result-ph" class="text-white">5.8 – 6.2</strong></span>
+              <span class="text-neutral-400">EC: <strong id="result-ec" class="text-white">0.8 – 1.2</strong></span>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-white/[0.06] text-[10px] uppercase font-bold text-neutral-500">
+                  <th class="py-1.5 pr-2">Producto</th>
+                  <th class="py-1.5 px-2 text-right">Dosis/L</th>
+                  <th class="py-1.5 pl-2 text-right text-white">A Mezclar</th>
+                </tr>
+              </thead>
+              <tbody id="fertilizer-table-body" class="divide-y divide-white/[0.04]"></tbody>
+            </table>
+          </div>
+
+          <div id="mixing-protocol-box" class="text-[11px] text-neutral-400 leading-relaxed pt-1"></div>
+        </div>
+
+        <!-- Botón para añadir directo al diario -->
+        <button type="button" id="btn-calc-log-to-plant" class="ios-btn ios-btn-primary w-full text-xs">
+          <span>💧 Añadir como Riego a mi Bitácora</span>
+        </button>
       </div>
     </section>
 
     <!-- ===================================================================
-         VISTA 3: CALENDARIO LUNAR AGRÍCOLA 2026/2027
+         VISTA 3: CALENDARIO LUNAR (POÉTICO & MINIMALISTA)
          =================================================================== -->
     <section id="view-lunar" class="app-view space-y-4" aria-label="Calendario Lunar">
-      <!-- Hero Lunar -->
-      <div class="app-card p-4 sm:p-5">
+      <div class="space-y-1">
+        <h2 class="text-2xl font-extrabold tracking-tight text-white">Calendario Lunar</h2>
+        <p class="text-xs text-neutral-400">Efemérides agronómicas adaptadas al Hemisferio Sur (Argentina).</p>
+      </div>
+
+      <!-- Hero Lunar Apple Style -->
+      <div class="ios-card p-5 space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div class="flex items-center gap-4">
-            <div id="lunar-hero-svg" class="h-20 w-20 shrink-0 flex items-center justify-center"></div>
+            <div id="lunar-hero-svg" class="h-16 w-16 shrink-0 flex items-center justify-center"></div>
             <div>
-              <span id="lunar-selected-date-label" class="inline-block rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-300 border border-emerald-500/25">
-                Hoy · H.O.A.
-              </span>
+              <span id="lunar-selected-date-label" class="badge-mono text-[10px]">Hoy · H.O.A.</span>
               <h3 id="lunar-phase-title" class="text-lg font-bold text-white mt-1">Fase Lunar</h3>
-              <p id="lunar-phase-meta" class="font-mono text-xs text-slate-400">Iluminación --%</p>
-              <p class="text-[11px] text-emerald-400/80 mt-1">🔭 Hemisferio Sur: <strong>C</strong> = Crece · <strong>D</strong> = Mengua</p>
+              <p id="lunar-phase-meta" class="text-xs text-neutral-400">Iluminación y ciclo</p>
             </div>
           </div>
-
-          <div id="lunar-day-recommendation" class="app-card p-3 max-w-sm w-full bg-canna-950/80 text-xs"></div>
+          <div id="lunar-day-recommendation" class="rounded-xl bg-neutral-900 border border-white/[0.08] p-3 text-xs max-w-sm w-full"></div>
         </div>
       </div>
 
-      <!-- Ventanas Clave -->
-      <div id="lunar-task-cards" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+      <!-- Tarjetas de Tareas Clave -->
+      <div id="lunar-task-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
 
       <!-- Calendario Interactivo -->
-      <div class="app-card p-4 space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="ios-card p-4 space-y-3">
+        <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-1.5">
-            <button id="btn-lunar-prev" type="button" class="touch-btn btn-secondary !p-0 w-8 h-8 text-sm">‹</button>
-            <select id="select-lunar-month" class="touch-input !py-1 !px-2.5 !h-8 text-xs font-bold"></select>
-            <select id="select-lunar-year" class="touch-input !py-1 !px-2.5 !h-8 font-mono text-xs font-bold"></select>
-            <button id="btn-lunar-next" type="button" class="touch-btn btn-secondary !p-0 w-8 h-8 text-sm">›</button>
-          </div>
-
-          <div id="lunar-filter-group" class="flex gap-1 overflow-x-auto no-scrollbar">
-            <button type="button" data-lunar-filter="all" class="lunar-filter-btn rounded px-2 py-1 text-xs font-semibold border">Todas</button>
-            <button type="button" data-lunar-filter="germinacion" class="lunar-filter-btn rounded px-2 py-1 text-xs font-semibold border">🌱 Germinar</button>
-            <button type="button" data-lunar-filter="podas" class="lunar-filter-btn rounded px-2 py-1 text-xs font-semibold border">✂️ Podas</button>
-            <button type="button" data-lunar-filter="cosecha" class="lunar-filter-btn rounded px-2 py-1 text-xs font-semibold border">🌾 Cosecha</button>
+            <button id="btn-lunar-prev" type="button" class="ios-btn ios-btn-secondary !p-0 w-8 h-8 text-sm">‹</button>
+            <select id="select-lunar-month" class="ios-input !py-1 !px-2.5 !h-8 text-xs font-bold"></select>
+            <select id="select-lunar-year" class="ios-input !py-1 !px-2.5 !h-8 font-mono text-xs font-bold"></select>
+            <button id="btn-lunar-next" type="button" class="ios-btn ios-btn-secondary !p-0 w-8 h-8 text-sm">›</button>
           </div>
         </div>
 
         <!-- Días Semana -->
-        <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-slate-500">
+        <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-neutral-500">
           <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
         </div>
 
-        <!-- Grilla -->
         <div id="lunar-calendar-grid" class="grid grid-cols-7 gap-1"></div>
-
-        <!-- Hitos -->
-        <div id="lunar-month-exact-events" class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-emerald-500/10"></div>
       </div>
     </section>
 
     <!-- ===================================================================
-         VISTA 4: PREVENCIÓN DE PLAGAS (MIP)
+         VISTA 4: CUIDADOS & PREVENCIÓN (MIP)
          =================================================================== -->
-    <section id="view-plagas" class="app-view space-y-4" aria-label="Control de Plagas">
-      <!-- Alerta de Aplicación -->
-      <div id="pest-alert-card" class="app-card p-4 sm:p-5"></div>
+    <section id="view-plagas" class="app-view space-y-4" aria-label="Cuidados">
+      <div class="space-y-1">
+        <h2 class="text-2xl font-extrabold tracking-tight text-white">Cuidados &amp; Prevención</h2>
+        <p class="text-xs text-neutral-400">Manejo Integrado de Plagas (MIP) con controles biológicos cada 10 a 15 días.</p>
+      </div>
 
-      <!-- Configuración de Pulverizador & Frecuencia -->
-      <div class="app-card p-4">
+      <div id="pest-alert-card" class="ios-card p-4 sm:p-5"></div>
+
+      <div class="ios-card p-4">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div>
-            <label for="input-pest-last-date" class="block font-bold text-slate-300 mb-1">Última Aplicación</label>
-            <input id="input-pest-last-date" type="date" class="touch-input w-full font-mono text-xs [color-scheme:dark]" />
+            <label for="input-pest-last-date" class="block font-semibold text-neutral-300 mb-1">Última Aplicación</label>
+            <input id="input-pest-last-date" type="date" class="ios-input w-full font-mono text-xs [color-scheme:dark]" />
           </div>
           <div>
-            <label for="select-pest-interval" class="block font-bold text-slate-300 mb-1">Intervalo Preventivo</label>
-            <select id="select-pest-interval" class="touch-input w-full text-xs">
-              <option value="10">Cada 10 días (Verano / Exterior)</option>
-              <option value="12" selected>Cada 12 días (Estándar)</option>
+            <label for="select-pest-interval" class="block font-semibold text-neutral-300 mb-1">Intervalo</label>
+            <select id="select-pest-interval" class="ios-input w-full text-xs">
+              <option value="10">Cada 10 días (Verano / Outdoor)</option>
+              <option value="12" selected>Cada 12 días (Recomendado)</option>
               <option value="15">Cada 15 días (Mantenimiento)</option>
             </select>
           </div>
           <div>
-            <label for="select-sprayer-liters" class="block font-bold text-slate-300 mb-1">Pulverizador</label>
-            <select id="select-sprayer-liters" class="touch-input w-full text-xs font-mono">
+            <label for="select-sprayer-liters" class="block font-semibold text-neutral-300 mb-1">Pulverizador</label>
+            <select id="select-sprayer-liters" class="ios-input w-full text-xs font-mono">
               <option value="0.5">0.5 L (Manual)</option>
               <option value="1" selected>1.0 L (Estándar)</option>
-              <option value="1.5">1.5 L (Presión previa)</option>
-              <option value="2">2.0 L (Presión previa)</option>
+              <option value="1.5">1.5 L</option>
+              <option value="2">2.0 L</option>
               <option value="5">5.0 L (Mochila)</option>
             </select>
           </div>
         </div>
       </div>
 
-      <!-- Fichas Biológicas Clave -->
-      <div id="pest-biocontrol-cards" class="grid grid-cols-1 md:grid-cols-2 gap-3.5"></div>
-
-      <!-- Cronograma -->
-      <div class="app-card p-4 space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="text-sm font-bold text-white">Cronograma de Próximas Aplicaciones</h3>
-          <span class="text-xs text-slate-400">Cada 10–15 días</span>
-        </div>
-        <div class="overflow-x-auto rounded-xl border border-emerald-500/15 bg-canna-950/70">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr class="border-b border-emerald-500/15 bg-canna-900/80 text-[10px] font-bold uppercase text-emerald-400/80">
-                <th class="py-2 pl-3 pr-2">Fecha</th>
-                <th class="py-2 px-2">Biológico</th>
-                <th class="py-2 px-2">Plaga</th>
-                <th class="hidden sm:table-cell py-2 pl-2 pr-3">Modo</th>
-              </tr>
-            </thead>
-            <tbody id="pest-schedule-tbody" class="divide-y divide-emerald-500/10"></tbody>
-          </table>
-        </div>
-      </div>
+      <div id="pest-biocontrol-cards" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5"></div>
     </section>
 
     <!-- ===================================================================
-         VISTA 5: CONFIGURACIÓN & BACKUP OFFLINE
+         VISTA 5: AJUSTES & COPIA DE SEGURIDAD
          =================================================================== -->
     <section id="view-config" class="app-view space-y-4" aria-label="Ajustes">
-      <div class="app-card p-5 space-y-5">
-        <div class="border-b border-emerald-500/10 pb-3">
-          <h2 class="text-base font-bold text-white">Configuración del Cultivo &amp; Datos</h2>
-          <p class="text-xs text-slate-400 mt-0.5">Tus datos se guardan 100% de forma local en tu navegador (IndexedDB / PWA).</p>
+      <div class="space-y-1">
+        <h2 class="text-2xl font-extrabold tracking-tight text-white">Ajustes</h2>
+        <p class="text-xs text-neutral-400">Preferencias locales y copia de seguridad de tu bitácora.</p>
+      </div>
+
+      <!-- Ajustes Tipo iOS Grouped Table -->
+      <div class="ios-grouped-table divide-y divide-white/[0.06] text-xs">
+        <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <strong class="text-white block">Zona Climática</strong>
+            <span class="text-neutral-400 text-[11px]">Ajusta consejos para tu región en Argentina</span>
+          </div>
+          <select id="cfg-region" class="ios-input !h-9 text-xs sm:w-60">
+            <option value="amba">Buenos Aires / AMBA / Litoral Sur</option>
+            <option value="centro">Centro · Córdoba / Santa Fe</option>
+            <option value="cuyo">Cuyo · Mendoza / San Juan</option>
+            <option value="norte">NOA / NEA · Norte</option>
+            <option value="patagonia">Patagonia</option>
+          </select>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+        <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <label for="cfg-region" class="block font-bold text-slate-300 mb-1">Zona Climática (Argentina)</label>
-            <select id="cfg-region" class="touch-input w-full">
-              <option value="amba">Buenos Aires / AMBA / Litoral Sur</option>
-              <option value="centro">Centro · Córdoba / Santa Fe / Entre Ríos</option>
-              <option value="cuyo">Cuyo · Mendoza / San Juan</option>
-              <option value="norte">NOA / NEA · Norte</option>
-              <option value="patagonia">Patagonia</option>
-            </select>
+            <strong class="text-white block">Medio de Cultivo</strong>
+            <span class="text-neutral-400 text-[11px]">Sustrato tierra o medios inertes</span>
           </div>
-
-          <div>
-            <label for="cfg-substrate" class="block font-bold text-slate-300 mb-1">Medio Predeterminado</label>
-            <select id="cfg-substrate" class="touch-input w-full">
-              <option value="sustrato">Sustrato / Tierra fértil (pH 5.8 – 6.5)</option>
-              <option value="coco">Fibra de Coco / Hidroponía (pH 5.5 – 6.1)</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="cfg-dose-factor" class="block font-bold text-slate-300 mb-1">Régimen Nutricional</label>
-            <select id="cfg-dose-factor" class="touch-input w-full">
-              <option value="0.75">75% — Suave (Automáticas / Sativas)</option>
-              <option value="1" selected>100% — Estándar (Fabricante)</option>
-              <option value="1.2">120% — Exigente (LED de alta potencia)</option>
-            </select>
-          </div>
+          <select id="cfg-substrate" class="ios-input !h-9 text-xs sm:w-60">
+            <option value="sustrato">Sustrato / Tierra fértil</option>
+            <option value="coco">Fibra de Coco / Hidroponía</option>
+          </select>
         </div>
 
-        <!-- Consejo regional -->
-        <div id="cfg-regional-tip" class="rounded-xl border border-emerald-500/15 bg-canna-950 p-3 text-xs text-slate-300"></div>
-
-        <!-- Copia de Seguridad Offline (Exportar/Importar JSON) -->
-        <div class="rounded-xl border border-emerald-500/20 bg-canna-950 p-4 space-y-3">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-xs font-bold text-white uppercase tracking-wider">Copia de Seguridad de la Bitácora</h3>
-              <p class="text-[11px] text-slate-400">Exportá todas tus plantas, fotos y registros a un archivo JSON para tener respaldo.</p>
-            </div>
-            <span class="text-xl">💾</span>
+        <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <strong class="text-white block">Régimen Nutricional</strong>
+            <span class="text-neutral-400 text-[11px]">Ajusta la intensidad de las recetas</span>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <button type="button" id="btn-backup-export" class="touch-btn btn-secondary text-xs !py-1.5 !px-3.5 !min-h-[2.2rem]">
-              <span>📥 Descargar Copia JSON</span>
-            </button>
-            <label class="touch-btn btn-secondary text-xs !py-1.5 !px-3.5 !min-h-[2.2rem] cursor-pointer">
-              <span>📤 Restaurar Copia</span>
-              <input type="file" id="input-backup-import" accept=".json" class="sr-only" />
-            </label>
-          </div>
+          <select id="cfg-dose-factor" class="ios-input !h-9 text-xs sm:w-60">
+            <option value="0.75">75% — Suave (Automáticas / Sativas)</option>
+            <option value="1" selected>100% — Estándar (Fabricante)</option>
+            <option value="1.2">120% — Exigente (Alta potencia)</option>
+          </select>
         </div>
+      </div>
 
-        <div class="pt-2 flex justify-between items-center text-xs">
-          <button type="button" id="btn-reset-app" class="text-red-400 hover:text-red-300 underline">
-            Restablecer datos de fábrica
+      <!-- Consejo Regional -->
+      <div id="cfg-regional-tip" class="ios-card p-4 text-xs text-neutral-300 leading-relaxed"></div>
+
+      <!-- Respaldo Offline JSON -->
+      <div class="ios-card p-4 space-y-3">
+        <div>
+          <h3 class="text-xs font-bold text-white uppercase tracking-wider">Copia de Seguridad de la Bitácora</h3>
+          <p class="text-[11px] text-neutral-400 mt-0.5">Podés exportar todas tus plantas, fotos y notas a un archivo JSON para tener respaldo en tu computadora o cambiar de celular.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" id="btn-backup-export" class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-3.5 !min-h-[2.1rem]">
+            <span>📥 Descargar Copia JSON</span>
           </button>
-          <span class="text-slate-500 text-[11px]">CannaSur AR v2.0 · PWA Offline</span>
+          <label class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-3.5 !min-h-[2.1rem] cursor-pointer">
+            <span>📤 Restaurar Copia</span>
+            <input type="file" id="input-backup-import" accept=".json" class="sr-only" />
+          </label>
         </div>
+      </div>
+
+      <div class="pt-2 flex justify-between items-center text-xs">
+        <button type="button" id="btn-reset-app" class="text-neutral-500 hover:text-red-400 transition">
+          Restablecer datos de fábrica
+        </button>
+        <span class="text-neutral-600 text-[11px]">CannaSur · Apple Minimalist UI</span>
       </div>
     </section>
 
   </main>
 
   <!-- =====================================================================
-       BOTTOM NAVIGATION DOCK (Mobile-First PWA)
+       BOTTOM NAVIGATION TAB BAR (Estilo iOS Nativo)
        ===================================================================== -->
-  <nav class="bottom-dock fixed bottom-0 left-0 right-0 z-40" aria-label="Navegación principal">
+  <nav class="ios-tab-bar fixed bottom-0 left-0 right-0 z-40" aria-label="Navegación principal">
     <div class="mx-auto grid max-w-md grid-cols-5 gap-1 px-2 pt-1.5">
-      <button type="button" data-nav-target="growlogs" class="dock-btn active">
-        <span class="dock-icon-box">
-          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M12 2C9.5 6.5 8 9.5 8 13a4 4 0 0 0 8 0c0-3.5-1.5-6.5-4-11Z"/>
-            <path d="M12 17c-3.5-2.5-6.5-3-9.5-2 1.5 3 4.5 4.5 9.5 4.5"/>
-            <path d="M12 17c3.5-2.5 6.5-3 9.5-2-1.5 3-4.5 4.5-9.5 4.5"/>
-            <path d="M12 17v5"/>
-          </svg>
-        </span>
-        <span>Plantas</span>
-      </button>
-
-      <button type="button" data-nav-target="calculadora" class="dock-btn">
-        <span class="dock-icon-box">
+      <button type="button" data-nav-target="growlogs" class="ios-tab-item active">
+        <span class="ios-tab-icon">
           <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10 2v7.31"/><path d="M14 9.3V1.99"/><path d="M8.5 2h7"/>
-            <path d="M14 9.3a6.5 6.5 0 1 1-4 0"/><path d="M5.52 16h12.96"/>
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
+            <path d="M6 6h10"/><path d="M6 10h10"/>
           </svg>
         </span>
-        <span>Calculadora</span>
+        <span>Bitácora</span>
       </button>
 
-      <button type="button" data-nav-target="lunar" class="dock-btn">
-        <span class="dock-icon-box">
+      <button type="button" data-nav-target="calculadora" class="ios-tab-item">
+        <span class="ios-tab-icon">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+          </svg>
+        </span>
+        <span>Riego</span>
+      </button>
+
+      <button type="button" data-nav-target="lunar" class="ios-tab-item">
+        <span class="ios-tab-icon">
           <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
           </svg>
         </span>
-        <span>Lunar</span>
+        <span>Luna</span>
       </button>
 
-      <button type="button" data-nav-target="plagas" class="dock-btn">
-        <span class="dock-icon-box relative">
+      <button type="button" data-nav-target="plagas" class="ios-tab-item">
+        <span class="ios-tab-icon">
           <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <path d="m9 12 2 2 4-4"/>
           </svg>
-          <span id="nav-pest-dot" class="hidden absolute right-1 top-0 h-2 w-2 rounded-full bg-amber-400"></span>
         </span>
-        <span>Plagas</span>
+        <span>Cuidados</span>
       </button>
 
-      <button type="button" data-nav-target="config" class="dock-btn">
-        <span class="dock-icon-box">
+      <button type="button" data-nav-target="config" class="ios-tab-item">
+        <span class="ios-tab-icon">
           <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="4" x2="20" y1="21" y2="21"/><line x1="4" x2="20" y1="14" y2="14"/><line x1="4" x2="20" y1="7" y2="7"/>
             <circle cx="9" cy="7" r="2"/><circle cx="15" cy="14" r="2"/><circle cx="11" cy="21" r="2"/>
@@ -633,102 +549,114 @@
   </nav>
 
   <!-- =====================================================================
-       MODAL 1: REGISTRO RÁPIDO DE EVENTO (LOG ENTRY)
+       MODAL 1: NUEVA ENTRADA DE BITÁCORA (APPLE BOTTOM SHEET)
        ===================================================================== -->
-  <div id="modal-log-entry" class="modal-backdrop fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-log-title">
-    <div class="modal-sheet w-full max-w-lg p-5 space-y-4">
-      <div class="flex items-center justify-between border-b border-emerald-500/10 pb-3">
-        <div>
-          <span id="modal-log-plant-badge" class="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400">Planta</span>
-          <h3 id="modal-log-title" class="text-base font-extrabold text-white">Registrar Evento en Bitácora</h3>
+  <div id="modal-log-entry" class="ios-modal-backdrop fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true">
+    <div class="ios-modal-sheet w-full max-w-lg p-5 space-y-4">
+      <div class="ios-grab-handle"></div>
+
+      <!-- Barra de acciones superior estilo iOS (Cancelar / Título / Guardar) -->
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <button id="btn-close-log-modal" type="button" class="text-xs text-neutral-400 hover:text-white transition font-medium">
+          Cancelar
+        </button>
+        <div class="text-center">
+          <h3 id="modal-log-title" class="text-sm font-bold text-white">Nueva Entrada</h3>
+          <span id="modal-log-plant-badge" class="text-[10px] text-neutral-400 block font-mono">Planta</span>
         </div>
-        <button id="btn-close-log-modal" type="button" class="text-slate-400 hover:text-white p-1.5 rounded-lg border border-emerald-500/15">✕</button>
+        <button type="submit" form="form-log-entry" class="text-xs font-bold text-white hover:text-neutral-200 transition">
+          Guardar
+        </button>
       </div>
 
-      <form id="form-log-entry" class="space-y-3.5">
-        <!-- Selector Visual de Tipo de Evento -->
+      <form id="form-log-entry" class="space-y-4 text-xs">
+        <!-- Selector de Tipo de Evento (Chips Limpios) -->
         <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1.5">Tipo de Evento</label>
+          <label class="block font-semibold text-neutral-300 mb-1.5 uppercase tracking-wide text-[11px]">Tipo de Entrada</label>
           <div class="grid grid-cols-3 gap-1.5" id="log-type-selector">
-            <button type="button" data-type="riego_agua" class="log-type-btn rounded-xl border p-2 text-center text-xs font-bold transition">💧 Riego Agua</button>
-            <button type="button" data-type="riego_nutrientes" class="log-type-btn rounded-xl border p-2 text-center text-xs font-bold transition">🧪 Nutrientes</button>
-            <button type="button" data-type="foliar" class="log-type-btn rounded-xl border p-2 text-center text-xs font-bold transition">🌿 Foliar</button>
-            <button type="button" data-type="poda" class="log-type-btn rounded-xl border p-2 text-center text-xs font-bold transition">✂️ Poda / LST</button>
-            <button type="button" data-type="transplante" class="log-type-btn rounded-xl border p-2 text-center text-xs font-bold transition">🪴 Transplante</button>
-            <button type="button" data-type="nota_foto" class="log-type-btn rounded-xl border p-2 text-center text-xs font-bold transition">📷 Foto / Nota</button>
+            <button type="button" data-type="riego_agua" class="log-type-btn rounded-xl border p-2 text-center font-semibold transition">💧 Riego</button>
+            <button type="button" data-type="riego_nutrientes" class="log-type-btn rounded-xl border p-2 text-center font-semibold transition">🧪 Nutrientes</button>
+            <button type="button" data-type="foliar" class="log-type-btn rounded-xl border p-2 text-center font-semibold transition">🌿 Foliar</button>
+            <button type="button" data-type="poda" class="log-type-btn rounded-xl border p-2 text-center font-semibold transition">✂️ Poda</button>
+            <button type="button" data-type="transplante" class="log-type-btn rounded-xl border p-2 text-center font-semibold transition">🪴 Transplante</button>
+            <button type="button" data-type="nota_foto" class="log-type-btn rounded-xl border p-2 text-center font-semibold transition">📷 Nota / Foto</button>
           </div>
           <input type="hidden" id="input-log-type" value="riego_agua" />
         </div>
 
         <!-- Fecha y Hora -->
         <div>
-          <label for="input-log-datetime" class="block text-xs font-bold text-slate-300 mb-1">Fecha y Hora</label>
-          <input id="input-log-datetime" type="datetime-local" class="touch-input w-full font-mono text-xs [color-scheme:dark]" required />
+          <label for="input-log-datetime" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Fecha y Hora</label>
+          <input id="input-log-datetime" type="datetime-local" class="ios-input w-full font-mono text-xs [color-scheme:dark]" required />
         </div>
 
-        <!-- Campos Dinámicos según tipo de evento -->
-        <div id="dynamic-log-fields" class="space-y-3">
-          <!-- Renderizado dinámicamente según input-log-type -->
-        </div>
+        <!-- Campos Dinámicos -->
+        <div id="dynamic-log-fields" class="space-y-3"></div>
 
-        <!-- Notas de Texto -->
+        <!-- Notas de la Entrada -->
         <div>
-          <label for="input-log-notes" class="block text-xs font-bold text-slate-300 mb-1">Notas / Observaciones</label>
-          <textarea id="input-log-notes" rows="2" placeholder="Observaciones de vigor, pistilos, hojas, aromas..."
-            class="touch-input w-full text-xs placeholder:text-slate-600 resize-none"></textarea>
+          <label for="input-log-notes" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Notas y Observaciones</label>
+          <textarea id="input-log-notes" rows="3" placeholder="Anotá cómo viste la planta, color de hojas, olores, vigor..."
+            class="ios-input w-full text-xs placeholder:text-neutral-500 resize-none"></textarea>
         </div>
 
-        <!-- Foto Adjunta (Cámara móvil / Archivo) -->
+        <!-- Subir Foto -->
         <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1.5">Foto de la Planta (Opcional)</label>
+          <label class="block font-semibold text-neutral-300 mb-1.5 uppercase tracking-wide text-[11px]">Foto Adjunta</label>
           <div class="flex items-center gap-3">
-            <label class="touch-btn btn-secondary text-xs !py-2 !px-3 cursor-pointer shrink-0">
+            <label class="ios-btn ios-btn-secondary text-xs !py-2 !px-3 cursor-pointer shrink-0">
               <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               <span>Tomar / Subir Foto</span>
               <input type="file" id="input-log-photo" accept="image/*" class="sr-only" />
             </label>
             <div id="log-photo-preview-box" class="hidden flex items-center gap-2">
-              <img id="log-photo-preview-img" src="" alt="Vista previa" class="h-10 w-10 object-cover rounded-lg border border-emerald-500/30" />
-              <button type="button" id="btn-remove-log-photo" class="text-xs text-red-400 hover:text-red-300 underline">Quitar</button>
+              <img id="log-photo-preview-img" src="" alt="Vista previa" class="h-10 w-10 object-cover rounded-xl border border-white/20" />
+              <button type="button" id="btn-remove-log-photo" class="text-xs text-neutral-400 hover:text-white underline">Quitar</button>
             </div>
           </div>
         </div>
 
-        <!-- Botón Guardar Grande -->
-        <button type="submit" class="touch-btn btn-primary w-full text-sm font-extrabold !py-3">
-          Guardar Evento en Bitácora
+        <button type="submit" class="ios-btn ios-btn-primary w-full text-sm font-bold !py-3">
+          Guardar Entrada en Bitácora
         </button>
       </form>
     </div>
   </div>
 
   <!-- =====================================================================
-       MODAL 2: NUEVA PLANTA / EDITAR PLANTA
+       MODAL 2: NUEVA PLANTA / EDITAR PLANTA (APPLE SHEET)
        ===================================================================== -->
-  <div id="modal-plant-form" class="modal-backdrop fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-plant-title">
-    <div class="modal-sheet w-full max-w-md p-5 space-y-4">
-      <div class="flex items-center justify-between border-b border-emerald-500/10 pb-3">
-        <h3 id="modal-plant-title" class="text-base font-extrabold text-white">Nueva Planta</h3>
-        <button id="btn-close-plant-modal" type="button" class="text-slate-400 hover:text-white p-1.5 rounded-lg border border-emerald-500/15">✕</button>
+  <div id="modal-plant-form" class="ios-modal-backdrop fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true">
+    <div class="ios-modal-sheet w-full max-w-md p-5 space-y-4">
+      <div class="ios-grab-handle"></div>
+
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <button id="btn-close-plant-modal" type="button" class="text-xs text-neutral-400 hover:text-white font-medium">
+          Cancelar
+        </button>
+        <h3 id="modal-plant-title" class="text-sm font-bold text-white">Nueva Planta</h3>
+        <button type="submit" form="form-plant" class="text-xs font-bold text-white hover:text-neutral-200">
+          Guardar
+        </button>
       </div>
 
       <form id="form-plant" class="space-y-3.5 text-xs">
         <input type="hidden" id="input-plant-id" value="" />
 
         <div>
-          <label for="input-plant-name" class="block font-bold text-slate-300 mb-1">Nombre de la Planta *</label>
-          <input id="input-plant-name" type="text" placeholder="Ej: Gorilla Glue #1" class="touch-input w-full text-xs" required />
+          <label for="input-plant-name" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Nombre de la Planta *</label>
+          <input id="input-plant-name" type="text" placeholder="Ej: Gorilla Glue #1" class="ios-input w-full text-xs" required />
         </div>
 
         <div>
-          <label for="input-plant-strain" class="block font-bold text-slate-300 mb-1">Genética / Variedad</label>
-          <input id="input-plant-strain" type="text" placeholder="Ej: Gorilla Glue (Feminizada)" class="touch-input w-full text-xs" />
+          <label for="input-plant-strain" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Genética / Variedad</label>
+          <input id="input-plant-strain" type="text" placeholder="Ej: Gorilla Glue (Feminizada)" class="ios-input w-full text-xs" />
         </div>
 
         <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <label for="select-plant-type" class="block font-bold text-slate-300 mb-1">Tipo de Planta</label>
-            <select id="select-plant-type" class="touch-input w-full text-xs">
+            <label for="select-plant-type" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Tipo</label>
+            <select id="select-plant-type" class="ios-input w-full text-xs">
               <option value="fotoperiodica">Fotoperiódica</option>
               <option value="automatica">Automática (Auto)</option>
               <option value="regular">Regular</option>
@@ -736,25 +664,25 @@
           </div>
 
           <div>
-            <label for="select-plant-medium" class="block font-bold text-slate-300 mb-1">Medio de Cultivo</label>
-            <select id="select-plant-medium" class="touch-input w-full text-xs">
+            <label for="select-plant-medium" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Medio</label>
+            <select id="select-plant-medium" class="ios-input w-full text-xs">
               <option value="sustrato">Sustrato / Tierra</option>
               <option value="coco">Fibra de Coco</option>
               <option value="hidro">Hidroponía</option>
-              <option value="exterior_suelo">Suelo Directo (Outdoor)</option>
+              <option value="exterior_suelo">Exterior en Suelo</option>
             </select>
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <label for="input-plant-germ-date" class="block font-bold text-slate-300 mb-1">Fecha de Germinación *</label>
-            <input id="input-plant-germ-date" type="date" class="touch-input w-full font-mono text-xs [color-scheme:dark]" required />
+            <label for="input-plant-germ-date" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Germinación *</label>
+            <input id="input-plant-germ-date" type="date" class="ios-input w-full font-mono text-xs [color-scheme:dark]" required />
           </div>
 
           <div>
-            <label for="select-plant-stage" class="block font-bold text-slate-300 mb-1">Etapa Actual *</label>
-            <select id="select-plant-stage" class="touch-input w-full text-xs font-semibold">
+            <label for="select-plant-stage" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Etapa Inicial *</label>
+            <select id="select-plant-stage" class="ios-input w-full text-xs font-semibold">
               <option value="plantula">🌱 Plántula</option>
               <option value="vegetativo" selected>🌿 Vegetativo</option>
               <option value="floracion">🌸 Floración</option>
@@ -765,20 +693,20 @@
 
         <!-- Foto de Portada -->
         <div>
-          <label class="block font-bold text-slate-300 mb-1.5">Foto de Portada</label>
+          <label class="block font-semibold text-neutral-300 mb-1.5 uppercase tracking-wide text-[11px]">Foto de Portada</label>
           <div class="flex items-center gap-3">
-            <label class="touch-btn btn-secondary text-xs !py-2 !px-3 cursor-pointer">
+            <label class="ios-btn ios-btn-secondary text-xs !py-2 !px-3 cursor-pointer">
               <span>Subir Foto</span>
               <input type="file" id="input-plant-cover-photo" accept="image/*" class="sr-only" />
             </label>
             <div id="plant-cover-preview-box" class="hidden flex items-center gap-2">
-              <img id="plant-cover-preview-img" src="" alt="Portada" class="h-10 w-10 object-cover rounded-lg border border-emerald-500/30" />
-              <button type="button" id="btn-remove-plant-cover" class="text-xs text-red-400 hover:text-red-300 underline">Quitar</button>
+              <img id="plant-cover-preview-img" src="" alt="Portada" class="h-10 w-10 object-cover rounded-xl border border-white/20" />
+              <button type="button" id="btn-remove-plant-cover" class="text-xs text-neutral-400 hover:text-white underline">Quitar</button>
             </div>
           </div>
         </div>
 
-        <button type="submit" class="touch-btn btn-primary w-full text-sm font-extrabold !py-3">
+        <button type="submit" class="ios-btn ios-btn-primary w-full text-sm font-bold !py-3">
           Guardar Planta
         </button>
       </form>
@@ -786,43 +714,44 @@
   </div>
 
   <!-- =====================================================================
-       MODAL 3: LIGHTBOX VISOR DE FOTOS
+       MODAL 3: LIGHTBOX VISOR DE FOTOS (APPLE STYLE)
        ===================================================================== -->
-  <div id="lightbox-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/90 backdrop-blur-md p-4">
+  <div id="lightbox-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/95 backdrop-blur-xl p-4">
     <div class="relative max-w-2xl w-full flex flex-col items-center">
-      <button id="btn-close-lightbox" type="button" class="absolute -top-10 right-0 text-white text-xl p-2">✕</button>
-      <img id="lightbox-img" src="" alt="Foto ampliada" class="max-h-[80vh] w-auto rounded-xl shadow-2xl border border-emerald-500/20 object-contain" />
-      <p id="lightbox-caption" class="text-xs text-slate-300 mt-2 text-center"></p>
+      <button id="btn-close-lightbox" type="button" class="absolute -top-10 right-0 text-white text-xl p-2 hover:opacity-70 transition">✕</button>
+      <img id="lightbox-img" src="" alt="Foto ampliada" class="max-h-[82vh] w-auto rounded-2xl shadow-2xl border border-white/10 object-contain" />
+      <p id="lightbox-caption" class="text-xs text-neutral-300 mt-3 text-center"></p>
     </div>
   </div>
 
   <!-- =====================================================================
        MODAL 4: EXPORTAR REPORTE (PDF / PNG)
        ===================================================================== -->
-  <div id="export-modal" class="modal-backdrop fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="modal-sheet w-full max-w-md p-5 space-y-4">
-      <div class="flex items-center justify-between border-b border-emerald-500/10 pb-3">
-        <h3 class="text-base font-extrabold text-white">Exportar Rutina y Bitácora</h3>
-        <button id="btn-close-export" type="button" class="text-slate-400 hover:text-white p-1 rounded-lg border border-emerald-500/15">✕</button>
+  <div id="export-modal" class="ios-modal-backdrop fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="ios-modal-sheet w-full max-w-md p-5 space-y-4">
+      <div class="ios-grab-handle"></div>
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <h3 class="text-sm font-bold text-white">Exportar Resumen</h3>
+        <button id="btn-close-export" type="button" class="text-xs text-neutral-400 hover:text-white">Cerrar</button>
       </div>
-      <div class="flex justify-center bg-canna-950 p-2 rounded-xl border border-emerald-500/15">
-        <canvas id="routine-export-canvas" class="w-full max-w-[340px] h-auto rounded shadow"></canvas>
+      <div class="flex justify-center bg-neutral-950 p-2 rounded-2xl border border-white/10">
+        <canvas id="routine-export-canvas" class="w-full max-w-[340px] h-auto rounded-xl shadow"></canvas>
       </div>
       <div class="grid grid-cols-2 gap-2">
-        <button id="btn-download-pdf" type="button" class="touch-btn btn-primary text-xs">📄 Descargar PDF</button>
-        <button id="btn-download-png" type="button" class="touch-btn btn-secondary text-xs">🖼️ Guardar PNG</button>
+        <button id="btn-download-pdf" type="button" class="ios-btn ios-btn-primary text-xs">📄 Descargar PDF</button>
+        <button id="btn-download-png" type="button" class="ios-btn ios-btn-secondary text-xs">🖼️ Guardar PNG</button>
       </div>
     </div>
   </div>
 
-  <!-- Toast -->
+  <!-- Toast Notificación iOS -->
   <div id="app-toast" class="pointer-events-none fixed left-1/2 top-14 z-50 -translate-x-1/2 opacity-0 transition-all duration-200">
-    <div class="rounded-full border border-emerald-400/40 bg-canna-900/95 px-4 py-1.5 text-xs font-bold text-emerald-200 shadow-xl">
+    <div class="rounded-full border border-white/20 bg-neutral-900/95 px-4 py-2 text-xs font-semibold text-white shadow-2xl backdrop-blur-md">
       <span id="app-toast-text">Guardado</span>
     </div>
   </div>
 
-  <!-- Lógica Principal Modularizada -->
+  <!-- Script Principal -->
   <script src="./app.js"></script>
 </body>
 </html>

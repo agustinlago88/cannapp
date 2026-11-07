@@ -1,33 +1,32 @@
 /* ==========================================================================
-   CannaSur AR — Bitácora de Cultivo (Growlogs) & Asistente Offline
-   Inspirado en "Grow with Jane": minimalista, offline-first y táctil.
+   CannaSur — Bitácora de Cultivo & Notas de Jardín
+   Estética Apple-Like: minimalista, orgánica, blanco y negro.
    ========================================================================== */
 'use strict';
 
 /* ==========================================================================
    1. CONSTANTES & CONFIGURACIONES GLOBALES
    ========================================================================== */
-const TZ_OFFSET_MS = 3 * 3600 * 1000; // Argentina UTC-3
 const DAY_MS = 86400000;
 const DB_NAME = 'CannaSurDB';
 const DB_VERSION = 1;
 
 const STAGES = {
-  plantula: { label: 'Plántula', emoji: '🌱', badgeClass: 'stage-badge-plantula', desc: 'Enraizamiento y primeras hojas verdaderas' },
-  vegetativo: { label: 'Vegetativo', emoji: '🌿', badgeClass: 'stage-badge-vegetativo', desc: 'Crecimiento de ramas y follaje' },
-  transicion: { label: 'Transición', emoji: '⚡', badgeClass: 'stage-badge-transicion', desc: 'Pre-floración y estiramiento (stretch)' },
+  plantula: { label: 'Plántula', emoji: '🌱', badgeClass: 'badge-mono', desc: 'Enraizamiento y primeras hojas verdaderas' },
+  vegetativo: { label: 'Vegetativo', emoji: '🌿', badgeClass: 'badge-mono', desc: 'Crecimiento de ramas y follaje' },
+  transicion: { label: 'Transición', emoji: '⚡', badgeClass: 'badge-mono', desc: 'Pre-floración y estiramiento (stretch)' },
   floracion: { label: 'Floración', emoji: '🌸', badgeClass: 'stage-badge-floracion', desc: 'Formación y engorde de cogollos' },
-  cosecha: { label: 'Cosecha', emoji: '💎', badgeClass: 'stage-badge-cosecha', desc: 'Maduración de tricomas y secado' }
+  cosecha: { label: 'Cosecha', emoji: '💎', badgeClass: 'badge-mono', desc: 'Maduración de tricomas y secado' }
 };
 
 const LOG_TYPES = {
-  riego_agua: { label: 'Riego con Agua', icon: '💧', color: 'text-cyan-300', border: 'border-cyan-400/40', bg: 'bg-cyan-500/15' },
-  riego_nutrientes: { label: 'Riego con Nutrientes', icon: '🧪', color: 'text-emerald-300', border: 'border-emerald-400/40', bg: 'bg-emerald-500/15' },
-  foliar: { label: 'Aplicación Foliar', icon: '🌿', color: 'text-lime-300', border: 'border-lime-400/40', bg: 'bg-lime-500/15' },
-  poda: { label: 'Poda / LST', icon: '✂️', color: 'text-purple-300', border: 'border-purple-400/40', bg: 'bg-purple-500/15' },
-  transplante: { label: 'Transplante', icon: '🪴', color: 'text-amber-300', border: 'border-amber-400/40', bg: 'bg-amber-500/15' },
-  cambio_etapa: { label: 'Cambio de Etapa', icon: '🌸', color: 'text-pink-300', border: 'border-pink-400/40', bg: 'bg-pink-500/15' },
-  nota_foto: { label: 'Foto / Nota', icon: '📷', color: 'text-sky-300', border: 'border-sky-400/40', bg: 'bg-sky-500/15' }
+  riego_agua: { label: 'Riego con Agua', icon: '💧', badge: 'badge-mono' },
+  riego_nutrientes: { label: 'Riego con Nutrientes', icon: '🧪', badge: 'badge-mono' },
+  foliar: { label: 'Aplicación Foliar', icon: '🌿', badge: 'badge-mono' },
+  poda: { label: 'Poda / Entrenamiento', icon: '✂️', badge: 'badge-mono' },
+  transplante: { label: 'Transplante', icon: '🪴', badge: 'badge-mono' },
+  cambio_etapa: { label: 'Cambio de Etapa', icon: '🌸', badge: 'stage-badge-floracion' },
+  nota_foto: { label: 'Nota / Foto', icon: '📷', badge: 'badge-mono' }
 };
 
 /* ==========================================================================
@@ -81,16 +80,15 @@ function showToast(msg) {
   const el = $('app-toast');
   $('app-toast-text').textContent = msg;
   el.style.opacity = '1';
-  el.style.transform = 'translate(-50%, 8px)';
+  el.style.transform = 'translate(-50%, 6px)';
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     el.style.opacity = '0';
     el.style.transform = 'translate(-50%, 0)';
-  }, 2300);
+  }, 2200);
 }
 
-/* Redimensionar y comprimir imágenes vía Canvas (mantiene la app rápida y ligera) */
-function compressImage(file, maxWidth = 1000, quality = 0.78) {
+function compressImage(file, maxWidth = 960, quality = 0.78) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
@@ -117,7 +115,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.78) {
 }
 
 /* ==========================================================================
-   3. GESTOR DE ALMACENAMIENTO OFFLINE (IndexedDB con fallback a localStorage)
+   3. GESTOR DE ALMACENAMIENTO OFFLINE (IndexedDB + Fallback)
    ========================================================================== */
 const Storage = {
   db: null,
@@ -125,7 +123,6 @@ const Storage = {
   async init() {
     return new Promise((resolve) => {
       if (!window.indexedDB) {
-        console.warn('IndexedDB no soportado, usando localStorage');
         resolve();
         return;
       }
@@ -144,14 +141,10 @@ const Storage = {
         this.db = e.target.result;
         resolve();
       };
-      req.onerror = () => {
-        console.warn('Fallo al abrir IndexedDB, usando localStorage');
-        resolve();
-      };
+      req.onerror = () => resolve();
     });
   },
 
-  /* Plantas */
   async getPlants() {
     if (this.db) {
       return new Promise((res) => {
@@ -187,7 +180,6 @@ const Storage = {
       return new Promise((res) => {
         const tx = this.db.transaction(['plants', 'logs'], 'readwrite');
         tx.objectStore('plants').delete(plantId);
-        // Borrar logs asociados
         const logStore = tx.objectStore('logs');
         const index = logStore.index('plantId');
         const req = index.openCursor(IDBKeyRange.only(plantId));
@@ -209,7 +201,6 @@ const Storage = {
     localStorage.setItem('cannasur_logs', JSON.stringify(logs));
   },
 
-  /* Logs / Eventos */
   async getAllLogs() {
     if (this.db) {
       return new Promise((res) => {
@@ -273,12 +264,12 @@ const Storage = {
     localStorage.setItem('cannasur_logs', JSON.stringify(logs));
   },
 
-  /* Semilla inicial para pruebas inmediatas si la base está vacía */
+  /* Semilla inicial demo amigable */
   async seedIfEmpty() {
     const plants = await this.getPlants();
     if (plants.length > 0) return;
 
-    const germDate = new Date(Date.now() - 36 * DAY_MS).toISOString().split('T')[0];
+    const germDate = new Date(Date.now() - 38 * DAY_MS).toISOString().split('T')[0];
     const demoPlant = {
       id: 'demo-plant-1',
       name: 'Gorilla Glue #4',
@@ -287,7 +278,6 @@ const Storage = {
       medium: 'sustrato',
       germDate: germDate,
       stage: 'vegetativo',
-      stageDate: germDate,
       createdAt: new Date().toISOString()
     };
     await this.savePlant(demoPlant);
@@ -297,24 +287,24 @@ const Storage = {
         id: 'log-1',
         plantId: demoPlant.id,
         type: 'transplante',
-        dateTime: new Date(Date.now() - 34 * DAY_MS).toISOString(),
-        notes: 'Semilla germinada con éxito en servilleta. Trasplante a maceta de 1L con sustrato liviano.',
+        dateTime: new Date(Date.now() - 36 * DAY_MS).toISOString(),
+        notes: 'Semilla germinada con vigor en servilleta húmeda. Pasada con cuidado a maceta inicial de 1L con sustrato liviano.',
         metrics: { potSize: '1 L' }
       },
       {
         id: 'log-2',
         plantId: demoPlant.id,
         type: 'riego_nutrientes',
-        dateTime: new Date(Date.now() - 14 * DAY_MS).toISOString(),
-        notes: 'Primer riego nutricional con Amazonia Roots (micorrizas) y Deeper Underground para estimular el cepellón de raíces.',
-        metrics: { liters: 1.5, ph: 6.2, ec: 0.9, products: 'Amazonia 1g/L + Deeper Underground 1.5ml/L' }
+        dateTime: new Date(Date.now() - 15 * DAY_MS).toISOString(),
+        notes: 'Primer riego nutricional con micorrizas y estimulante radicular. El cepellón de raíces colonizó todo el fondo.',
+        metrics: { liters: 1.5, ph: 6.2, ec: 0.9, products: 'Amazonia Roots 1g/L + Deeper Underground' }
       },
       {
         id: 'log-3',
         plantId: demoPlant.id,
         type: 'poda',
-        dateTime: new Date(Date.now() - 6 * DAY_MS).toISOString(),
-        notes: 'Poda apical en el 4to nudo para fomentar ramificación lateral. Excelente cicatrización y vigor.',
+        dateTime: new Date(Date.now() - 7 * DAY_MS).toISOString(),
+        notes: 'Poda apical en el 4to nudo para abrir la copa y generar múltiples ramas principales. Cicatrizó en 24 horas.',
         metrics: { pruneType: 'Poda Apical' }
       },
       {
@@ -322,7 +312,7 @@ const Storage = {
         plantId: demoPlant.id,
         type: 'foliar',
         dateTime: new Date(Date.now() - 2 * DAY_MS).toISOString(),
-        notes: 'Aplicación foliar preventiva al atardecer: Aceite de Neem + Jabón Potásico en el envés de las hojas.',
+        notes: 'Pulverización foliar preventiva al caer el sol: Aceite de Neem + Jabón Potásico en ambas caras de las hojas.',
         metrics: { foliarType: 'Aceite de Neem + Jabón Potásico', liters: 1.0 }
       }
     ];
@@ -334,7 +324,7 @@ const Storage = {
 };
 
 /* ==========================================================================
-   4. MÓDULO GROWLOGS (BITÁCORA DE PLANTAS)
+   4. MÓDULO GROWLOGS (BITÁCORA TIPO APPLE NOTES / JOURNAL)
    ========================================================================== */
 const GrowlogsModule = {
   plants: [],
@@ -347,13 +337,12 @@ const GrowlogsModule = {
     await Storage.seedIfEmpty();
     await this.loadPlants();
 
-    // Eventos del Dashboard
     $('btn-top-new-plant').addEventListener('click', () => this.openPlantModal());
     $('btn-empty-add-plant')?.addEventListener('click', () => this.openPlantModal());
     $('btn-load-demo-plant')?.addEventListener('click', async () => {
       await Storage.seedIfEmpty();
       await this.loadPlants();
-      showToast('🌱 Planta demo cargada');
+      showToast('🌱 Planta de ejemplo cargada');
     });
 
     $('btn-back-to-plants').addEventListener('click', () => this.showDashboard());
@@ -363,24 +352,21 @@ const GrowlogsModule = {
     });
 
     $('btn-delete-plant').addEventListener('click', async () => {
-      if (!confirm('¿Estás seguro de eliminar esta planta y todo su historial de eventos?')) return;
+      if (!confirm('¿Eliminar esta planta y todas sus notas de la bitácora?')) return;
       await Storage.deletePlant(this.activePlantId);
       this.activePlantId = null;
       await this.loadPlants();
       this.showDashboard();
-      showToast('🗑️ Planta eliminada');
+      showToast('Planta eliminada');
     });
 
-    // Filtros de etapas de plantas
+    // Segmented filters de plantas
     $('plants-stage-filters').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-plant-filter]');
       if (!btn) return;
       this.activeFilter = btn.dataset.plantFilter;
       document.querySelectorAll('#plants-stage-filters button').forEach((b) => {
-        const act = b === btn;
-        b.className = act
-          ? 'rounded-lg px-2.5 py-1 text-xs font-semibold bg-emerald-500/20 text-emerald-200 border border-emerald-500/30'
-          : 'rounded-lg px-2.5 py-1 text-xs font-semibold bg-canna-900 text-slate-400 hover:text-white border border-emerald-500/10';
+        b.classList.toggle('active', b === btn);
       });
       this.renderPlantsGrid();
     });
@@ -392,14 +378,12 @@ const GrowlogsModule = {
       this.activeTimelineFilter = btn.dataset.timelineFilter;
       document.querySelectorAll('#timeline-filters button').forEach((b) => {
         const act = b === btn;
-        b.className = act
-          ? 'rounded-lg px-2.5 py-1 text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-          : 'rounded-lg px-2.5 py-1 text-xs font-semibold bg-canna-900 text-slate-400 hover:text-white border border-emerald-500/10';
+        b.className = act ? 'badge-mono badge-mono-inverted cursor-pointer' : 'badge-mono cursor-pointer';
       });
       this.renderTimeline();
     });
 
-    // Accesos rápidos de registro
+    // Accesos directos rápidos
     document.querySelectorAll('[data-quick-log]').forEach((b) => {
       b.addEventListener('click', () => this.openLogModal(b.dataset.quickLog));
     });
@@ -420,11 +404,11 @@ const GrowlogsModule = {
       const file = e.target.files[0];
       if (!file) return;
       try {
-        this.pendingPhotoData = await compressImage(file, 900, 0.78);
+        this.pendingPhotoData = await compressImage(file, 960, 0.78);
         $('log-photo-preview-img').src = this.pendingPhotoData;
         $('log-photo-preview-box').classList.remove('hidden');
-      } catch (err) {
-        showToast('Error al procesar imagen');
+      } catch {
+        showToast('No se pudo procesar la foto');
       }
     });
     $('btn-remove-log-photo').addEventListener('click', () => {
@@ -446,7 +430,7 @@ const GrowlogsModule = {
         $('plant-cover-preview-box').classList.remove('hidden');
         $('input-plant-cover-photo').dataset.base64 = photo;
       } catch {
-        showToast('Error al procesar foto de portada');
+        showToast('Error con la foto de portada');
       }
     });
     $('btn-remove-plant-cover').addEventListener('click', () => {
@@ -465,7 +449,7 @@ const GrowlogsModule = {
   async loadPlants() {
     this.plants = await Storage.getPlants();
     this.updateStats();
-    this.renderPlantsGrid();
+    await this.renderPlantsGrid();
   },
 
   updateStats() {
@@ -474,7 +458,7 @@ const GrowlogsModule = {
     $('stat-flower-plants').textContent = this.plants.filter((p) => p.stage === 'floracion' || p.stage === 'transicion').length;
   },
 
-  renderPlantsGrid() {
+  async renderPlantsGrid() {
     const grid = $('plants-grid');
     const empty = $('plants-empty-state');
 
@@ -491,53 +475,60 @@ const GrowlogsModule = {
     empty.classList.add('hidden');
 
     if (filtered.length === 0) {
-      grid.innerHTML = `<div class="col-span-full app-card p-6 text-center text-xs text-slate-400">No hay plantas en etapa ${this.activeFilter}.</div>`;
+      grid.innerHTML = `<div class="col-span-full ios-card p-6 text-center text-xs text-neutral-400">No hay plantas en etapa ${this.activeFilter}.</div>`;
       return;
     }
 
-    grid.innerHTML = filtered.map((p) => {
+    const cardsHtml = await Promise.all(filtered.map(async (p) => {
       const days = daysDiff(p.germDate, todayDateStr());
       const weeks = Math.max(1, Math.floor(days / 7) + 1);
       const st = STAGES[p.stage] || STAGES.vegetativo;
+      const logs = await Storage.getLogsByPlant(p.id);
+      const lastLog = logs[0];
 
       return `
-        <div class="app-card overflow-hidden flex flex-col justify-between hover:border-emerald-500/40 transition cursor-pointer group" onclick="GrowlogsModule.openPlantDetail('${p.id}')">
-          <div>
-            <!-- Portada o Cabecera Visual -->
-            <div class="relative h-28 w-full bg-canna-950 flex items-center justify-center overflow-hidden border-b border-emerald-500/10">
-              ${p.coverPhoto
-                ? `<img src="${p.coverPhoto}" alt="${esc(p.name)}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />`
-                : `<div class="flex flex-col items-center justify-center text-slate-600 group-hover:text-emerald-400 transition">
-                     <span class="text-3xl">${st.emoji}</span>
-                     <span class="text-[10px] uppercase font-bold tracking-widest mt-1 text-slate-500">${p.type}</span>
-                   </div>`}
-              <div class="absolute top-2 left-2 flex items-center gap-1.5">
-                <span class="rounded-md px-2 py-0.5 text-[10px] font-bold ${st.badgeClass}">${st.label}</span>
+        <div class="ios-card ios-card-press p-4 flex flex-col justify-between cursor-pointer space-y-3" onclick="GrowlogsModule.openPlantDetail('${p.id}')">
+          <div class="space-y-3">
+            <!-- Fila Superior: Foto/Avatar + Nombre -->
+            <div class="flex items-center gap-3">
+              <div class="h-14 w-14 shrink-0 rounded-2xl bg-neutral-900 border border-white/10 overflow-hidden flex items-center justify-center">
+                ${p.coverPhoto
+                  ? `<img src="${p.coverPhoto}" alt="${esc(p.name)}" class="h-full w-full object-cover" />`
+                  : `<span class="text-2xl">${st.emoji}</span>`}
               </div>
-              <div class="absolute bottom-2 right-2 rounded-md bg-black/75 px-2 py-0.5 text-[11px] font-mono font-bold text-white backdrop-blur-sm border border-white/10">
-                Día ${days} <span class="text-emerald-400 font-semibold">(Sem ${weeks})</span>
+              <div class="min-w-0 flex-1">
+                <h3 class="text-base font-bold text-white tracking-tight leading-tight truncate">${esc(p.name)}</h3>
+                <p class="text-xs text-neutral-400 truncate mt-0.5">${esc(p.strain || 'Genética personalizada')}</p>
+                <div class="flex items-center gap-1.5 mt-1.5">
+                  <span class="badge-mono font-mono text-[10px]">Día ${days}</span>
+                  <span class="badge-mono text-[10px] text-neutral-300">Sem ${weeks}</span>
+                  <span class="${st.badgeClass} text-[10px]">${st.label}</span>
+                </div>
               </div>
             </div>
 
-            <!-- Detalles -->
-            <div class="p-3.5 space-y-1.5">
-              <h3 class="text-base font-extrabold text-white group-hover:text-emerald-300 transition truncate">${esc(p.name)}</h3>
-              <p class="text-xs text-slate-400 truncate">${esc(p.strain || 'Genética sin especificar')}</p>
-              <div class="flex items-center gap-2 pt-1 text-[11px] text-slate-400">
-                <span class="rounded bg-canna-900 border border-emerald-500/10 px-1.5 py-0.5">🌱 Germinó: ${p.germDate}</span>
-                <span class="rounded bg-canna-900 border border-emerald-500/10 px-1.5 py-0.5">${p.medium}</span>
-              </div>
+            <!-- Última Nota Registrada (Estilo Apple Notes Snippet) -->
+            <div class="rounded-xl bg-neutral-950 p-2.5 border border-white/[0.04] text-[11px] text-neutral-400">
+              ${lastLog
+                ? `<div class="flex items-center justify-between text-[10px] text-neutral-500 mb-0.5 font-mono">
+                     <span>${LOG_TYPES[lastLog.type]?.icon || '📝'} ${LOG_TYPES[lastLog.type]?.label || 'Nota'}</span>
+                     <span>${timeAgo(lastLog.dateTime)}</span>
+                   </div>
+                   <p class="text-neutral-300 line-clamp-2 leading-relaxed">"${esc(lastLog.notes || 'Entrada registrada')}"</p>`
+                : `<p class="italic text-neutral-500">Sin notas aún. Toca para empezar su bitácora.</p>`}
             </div>
           </div>
 
-          <!-- Pie de tarjeta táctil -->
-          <div class="px-3.5 pb-3 pt-1 border-t border-emerald-500/10 flex items-center justify-between text-xs text-emerald-400 font-semibold">
-            <span>Ver Bitácora &amp; Eventos</span>
-            <span class="group-hover:translate-x-1 transition">→</span>
+          <!-- Pie sutil -->
+          <div class="flex items-center justify-between pt-1 text-[11px] text-neutral-400 font-medium">
+            <span>${p.medium} · ${p.type}</span>
+            <span class="text-white text-xs">Abrir bitácora →</span>
           </div>
         </div>
       `;
-    }).join('');
+    }));
+
+    grid.innerHTML = cardsHtml.join('');
   },
 
   async openPlantDetail(plantId) {
@@ -558,7 +549,7 @@ const GrowlogsModule = {
     this.activePlantId = null;
     $('growlogs-detail-container').classList.add('hidden');
     $('growlogs-dashboard-container').classList.remove('hidden');
-    $('top-bar-subtext').textContent = 'Bitácora de Plantas · Offline';
+    $('top-bar-subtext').textContent = 'Bitácora de Plantas';
     this.renderPlantsGrid();
   },
 
@@ -569,33 +560,33 @@ const GrowlogsModule = {
 
     $('plant-hero-card').innerHTML = `
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div class="flex items-center gap-3.5">
-          <div class="h-16 w-16 shrink-0 rounded-2xl bg-canna-950 border border-emerald-500/20 overflow-hidden flex items-center justify-center">
+        <div class="flex items-center gap-4">
+          <div class="h-16 w-16 shrink-0 rounded-2xl bg-neutral-900 border border-white/10 overflow-hidden flex items-center justify-center">
             ${plant.coverPhoto
               ? `<img src="${plant.coverPhoto}" alt="${esc(plant.name)}" class="h-full w-full object-cover cursor-pointer" onclick="GrowlogsModule.openLightbox('${plant.coverPhoto}', '${esc(plant.name)}')">`
-              : `<span class="text-2xl">${st.emoji}</span>`}
+              : `<span class="text-3xl">${st.emoji}</span>`}
           </div>
 
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="text-lg font-extrabold text-white leading-tight">${esc(plant.name)}</h2>
-              <span class="rounded-md px-2 py-0.5 text-[10px] font-bold ${st.badgeClass}">${st.label}</span>
+              <h2 class="text-xl font-extrabold text-white tracking-tight">${esc(plant.name)}</h2>
+              <span class="${st.badgeClass} text-[10px]">${st.label}</span>
             </div>
-            <p class="text-xs text-slate-400 mt-0.5">${esc(plant.strain || 'Variedad personalizada')} · <span class="capitalize">${plant.type}</span></p>
-            <div class="flex items-center gap-2 mt-1.5 font-mono text-xs">
-              <span class="text-emerald-300 font-bold">Día ${days}</span>
-              <span class="text-slate-500">|</span>
-              <span class="text-slate-300">Semana ${weeks}</span>
-              <span class="text-slate-500">|</span>
-              <span class="text-slate-400 font-sans">${plant.medium}</span>
+            <p class="text-xs text-neutral-400 mt-0.5">${esc(plant.strain || 'Variedad de jardín')} · <span class="capitalize">${plant.type}</span></p>
+            <div class="flex items-center gap-2 mt-2 font-mono text-xs">
+              <span class="text-white font-bold">Día ${days}</span>
+              <span class="text-neutral-600">·</span>
+              <span class="text-neutral-300">Semana ${weeks}</span>
+              <span class="text-neutral-600">·</span>
+              <span class="text-neutral-400 font-sans">${plant.medium}</span>
             </div>
           </div>
         </div>
 
-        <!-- Selector Rápido de Cambio de Etapa -->
-        <div class="flex items-center gap-2 bg-canna-950 p-2 rounded-xl border border-emerald-500/15">
-          <label for="quick-change-stage" class="text-[11px] font-bold text-slate-400 uppercase">Etapa:</label>
-          <select id="quick-change-stage" class="bg-transparent text-xs font-bold text-emerald-300 focus:outline-none cursor-pointer">
+        <!-- Selector de Etapa Estilo iOS -->
+        <div class="flex items-center gap-2 bg-neutral-950 px-3 py-1.5 rounded-xl border border-white/[0.08]">
+          <span class="text-[11px] font-semibold text-neutral-400 uppercase">Etapa:</span>
+          <select id="quick-change-stage" class="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer">
             <option value="plantula" ${plant.stage === 'plantula' ? 'selected' : ''}>🌱 Plántula</option>
             <option value="vegetativo" ${plant.stage === 'vegetativo' ? 'selected' : ''}>🌿 Vegetativo</option>
             <option value="transicion" ${plant.stage === 'transicion' ? 'selected' : ''}>⚡ Transición</option>
@@ -612,7 +603,6 @@ const GrowlogsModule = {
       plant.stage = newStage;
       await Storage.savePlant(plant);
 
-      // Registrar evento de cambio de etapa automáticamente
       await Storage.saveLog({
         id: 'log-' + Date.now(),
         plantId: plant.id,
@@ -624,7 +614,7 @@ const GrowlogsModule = {
 
       this.renderPlantHero(plant);
       await this.renderTimeline();
-      showToast(`🌸 Etapa actualizada a ${STAGES[newStage].label}`);
+      showToast(`Etapa: ${STAGES[newStage].label}`);
     });
   },
 
@@ -633,7 +623,7 @@ const GrowlogsModule = {
     const plant = this.plants.find((p) => p.id === this.activePlantId);
     let logs = await Storage.getLogsByPlant(this.activePlantId);
 
-    $('timeline-count-badge').textContent = `${logs.length} ${logs.length === 1 ? 'evento' : 'eventos'}`;
+    $('timeline-count-badge').textContent = `${logs.length} ${logs.length === 1 ? 'nota' : 'notas'}`;
 
     if (this.activeTimelineFilter === 'riegos') {
       logs = logs.filter((l) => l.type === 'riego_agua' || l.type === 'riego_nutrientes');
@@ -659,68 +649,61 @@ const GrowlogsModule = {
       const t = LOG_TYPES[log.type] || LOG_TYPES.nota_foto;
       const dayAtLog = plant ? daysDiff(plant.germDate, log.dateTime.split('T')[0]) : null;
 
-      // Métricas formateadas si existen
+      // Métricas limpias en blanco y negro
       let metricsBadges = '';
       if (log.metrics) {
         const m = log.metrics;
-        if (m.liters) metricsBadges += `<span class="rounded bg-canna-950 border border-cyan-500/20 px-2 py-0.5 text-cyan-300 font-mono">${m.liters} L agua</span>`;
-        if (m.ph) metricsBadges += `<span class="rounded bg-canna-950 border border-emerald-500/20 px-2 py-0.5 text-emerald-300 font-mono">pH ${m.ph}</span>`;
-        if (m.ec) metricsBadges += `<span class="rounded bg-canna-950 border border-lime-500/20 px-2 py-0.5 text-lime-300 font-mono">EC ${m.ec}</span>`;
-        if (m.products) metricsBadges += `<span class="rounded bg-canna-950 border border-emerald-500/20 px-2 py-0.5 text-slate-300">${esc(m.products)}</span>`;
-        if (m.foliarType) metricsBadges += `<span class="rounded bg-canna-950 border border-lime-500/20 px-2 py-0.5 text-lime-300">${esc(m.foliarType)}</span>`;
-        if (m.pruneType) metricsBadges += `<span class="rounded bg-canna-950 border border-purple-500/20 px-2 py-0.5 text-purple-300">${esc(m.pruneType)}</span>`;
-        if (m.potSize) metricsBadges += `<span class="rounded bg-canna-950 border border-amber-500/20 px-2 py-0.5 text-amber-300">Maceta ${esc(m.potSize)}</span>`;
+        if (m.liters) metricsBadges += `<span class="badge-mono font-mono text-[10px]">${m.liters} L agua</span>`;
+        if (m.ph) metricsBadges += `<span class="badge-mono font-mono text-[10px]">pH ${m.ph}</span>`;
+        if (m.ec) metricsBadges += `<span class="badge-mono font-mono text-[10px]">EC ${m.ec}</span>`;
+        if (m.products) metricsBadges += `<span class="badge-mono text-[10px]">${esc(m.products)}</span>`;
+        if (m.foliarType) metricsBadges += `<span class="badge-mono text-[10px]">${esc(m.foliarType)}</span>`;
+        if (m.pruneType) metricsBadges += `<span class="badge-mono text-[10px]">${esc(m.pruneType)}</span>`;
+        if (m.potSize) metricsBadges += `<span class="badge-mono text-[10px]">Maceta ${esc(m.potSize)}</span>`;
       }
 
       return `
-        <div class="timeline-node">
-          <div class="timeline-pin ${t.border}">
-            <span>${t.icon}</span>
-          </div>
-
-          <div class="app-card p-3.5 space-y-2">
-            <div class="flex items-start justify-between gap-2">
-              <div>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-bold text-white">${t.label}</span>
-                  ${dayAtLog != null ? `<span class="rounded bg-canna-950 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-400 border border-emerald-500/20">Día ${dayAtLog}</span>` : ''}
-                </div>
-                <div class="font-mono text-[11px] text-slate-400 mt-0.5">
-                  ${formatPrettyDate(log.dateTime)} <span class="text-slate-500">(${timeAgo(log.dateTime)})</span>
-                </div>
+        <div class="journal-entry-card space-y-2.5">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="badge-mono">${t.icon} ${t.label}</span>
+                ${dayAtLog != null ? `<span class="badge-mono text-[10px] font-mono">Día ${dayAtLog}</span>` : ''}
               </div>
-
-              <button type="button" onclick="GrowlogsModule.deleteLogEntry('${log.id}')"
-                class="text-slate-500 hover:text-red-400 p-1 text-xs transition" title="Eliminar este evento">
-                ✕
-              </button>
+              <div class="text-[11px] text-neutral-400 mt-1 font-mono">
+                ${formatPrettyDate(log.dateTime)} <span class="text-neutral-500">(${timeAgo(log.dateTime)})</span>
+              </div>
             </div>
 
-            ${metricsBadges ? `<div class="flex flex-wrap gap-1.5 text-[11px] pt-1">${metricsBadges}</div>` : ''}
-
-            ${log.notes ? `<p class="text-xs text-slate-200 leading-relaxed whitespace-pre-line">${esc(log.notes)}</p>` : ''}
-
-            ${log.photo ? `
-              <div class="pt-1">
-                <img src="${log.photo}" alt="Foto del evento"
-                  onclick="GrowlogsModule.openLightbox('${log.photo}', '${esc(t.label)} · Día ${dayAtLog}')"
-                  class="h-28 w-44 object-cover rounded-xl border border-emerald-500/20 cursor-pointer hover:border-emerald-400 transition" />
-              </div>
-            ` : ''}
+            <button type="button" onclick="GrowlogsModule.deleteLogEntry('${log.id}')"
+              class="text-neutral-500 hover:text-white p-1 text-xs transition" title="Eliminar entrada">
+              ✕
+            </button>
           </div>
+
+          ${metricsBadges ? `<div class="flex flex-wrap gap-1 text-[11px] pt-0.5">${metricsBadges}</div>` : ''}
+
+          ${log.notes ? `<p class="text-xs text-neutral-200 leading-relaxed whitespace-pre-line">${esc(log.notes)}</p>` : ''}
+
+          ${log.photo ? `
+            <div class="pt-1">
+              <img src="${log.photo}" alt="Foto de bitácora"
+                onclick="GrowlogsModule.openLightbox('${log.photo}', '${esc(t.label)} · Día ${dayAtLog}')"
+                class="h-32 sm:h-40 w-auto object-cover rounded-xl border border-white/10 cursor-pointer hover:border-white/30 transition shadow-sm" />
+            </div>
+          ` : ''}
         </div>
       `;
     }).join('');
   },
 
   async deleteLogEntry(logId) {
-    if (!confirm('¿Eliminar este registro de la bitácora?')) return;
+    if (!confirm('¿Eliminar esta entrada de la bitácora?')) return;
     await Storage.deleteLog(logId);
     await this.renderTimeline();
-    showToast('Registro eliminado');
+    showToast('Entrada eliminada');
   },
 
-  /* Formulario Modal de Evento */
   openLogModal(initialType = 'riego_agua') {
     if (!this.activePlantId) {
       showToast('Seleccioná una planta primero');
@@ -748,10 +731,10 @@ const GrowlogsModule = {
     $('input-log-type').value = type;
     document.querySelectorAll('.log-type-btn').forEach((btn) => {
       const active = btn.dataset.type === type;
-      btn.className = `log-type-btn rounded-xl border p-2 text-center text-xs font-bold transition ${
+      btn.className = `log-type-btn rounded-xl border p-2 text-center text-xs font-semibold transition ${
         active
-          ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
-          : 'bg-canna-950 border-emerald-500/10 text-slate-400 hover:text-white'
+          ? 'bg-white text-black border-white shadow'
+          : 'bg-neutral-900 border-white/[0.08] text-neutral-400 hover:text-white'
       }`;
     });
 
@@ -760,16 +743,16 @@ const GrowlogsModule = {
       dyn.innerHTML = `
         <div class="grid grid-cols-3 gap-2">
           <div>
-            <label class="block text-[11px] font-bold text-slate-300 mb-1">Litros de Agua</label>
-            <input id="log-liters" type="number" step="0.25" value="2.0" class="touch-input w-full font-mono text-xs" required />
+            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Litros</label>
+            <input id="log-liters" type="number" step="0.25" value="2.0" class="ios-input w-full font-mono text-xs" required />
           </div>
           <div>
-            <label class="block text-[11px] font-bold text-slate-300 mb-1">pH (Opcional)</label>
-            <input id="log-ph" type="number" step="0.1" placeholder="6.2" class="touch-input w-full font-mono text-xs" />
+            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">pH</label>
+            <input id="log-ph" type="number" step="0.1" placeholder="6.2" class="ios-input w-full font-mono text-xs" />
           </div>
           <div>
-            <label class="block text-[11px] font-bold text-slate-300 mb-1">EC (Opcional)</label>
-            <input id="log-ec" type="number" step="0.1" placeholder="0.4" class="touch-input w-full font-mono text-xs" />
+            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">EC</label>
+            <input id="log-ec" type="number" step="0.1" placeholder="0.4" class="ios-input w-full font-mono text-xs" />
           </div>
         </div>
       `;
@@ -777,52 +760,52 @@ const GrowlogsModule = {
       dyn.innerHTML = `
         <div class="grid grid-cols-3 gap-2">
           <div>
-            <label class="block text-[11px] font-bold text-slate-300 mb-1">Litros</label>
-            <input id="log-liters" type="number" step="0.25" value="2.0" class="touch-input w-full font-mono text-xs" required />
+            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Litros</label>
+            <input id="log-liters" type="number" step="0.25" value="2.0" class="ios-input w-full font-mono text-xs" required />
           </div>
           <div>
-            <label class="block text-[11px] font-bold text-slate-300 mb-1">pH Entrada</label>
-            <input id="log-ph" type="number" step="0.1" placeholder="6.2" class="touch-input w-full font-mono text-xs" />
+            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">pH</label>
+            <input id="log-ph" type="number" step="0.1" placeholder="6.2" class="ios-input w-full font-mono text-xs" />
           </div>
           <div>
-            <label class="block text-[11px] font-bold text-slate-300 mb-1">EC (mS/cm)</label>
-            <input id="log-ec" type="number" step="0.1" placeholder="1.2" class="touch-input w-full font-mono text-xs" />
+            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">EC</label>
+            <input id="log-ec" type="number" step="0.1" placeholder="1.2" class="ios-input w-full font-mono text-xs" />
           </div>
         </div>
         <div>
-          <label class="block text-[11px] font-bold text-slate-300 mb-1">Productos y Dosis</label>
-          <input id="log-products" type="text" placeholder="Ej: Top Bloom 3ml/L + Top Candy 2ml/L" class="touch-input w-full text-xs" />
+          <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Productos de la Mezcla</label>
+          <input id="log-products" type="text" placeholder="Ej: Top Bloom 3ml/L + Top Candy 2ml/L" class="ios-input w-full text-xs" />
         </div>
       `;
     } else if (type === 'foliar') {
       dyn.innerHTML = `
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-[11px] font-bold text-slate-300 mb-1">Tratamiento Foliar</label>
-            <select id="log-foliar-type" class="touch-input w-full text-xs">
+            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Tratamiento Foliar</label>
+            <select id="log-foliar-type" class="ios-input w-full text-xs">
               <option value="Aceite de Neem + Jabón Potásico">🌿 Neem + Jabón Potásico</option>
               <option value="Bacillus thuringiensis (Bt)">🐛 Bacillus thuringiensis</option>
               <option value="Jabón Potásico solo">🧼 Jabón Potásico solo</option>
-              <option value="Bioestimulante foliar (Algas / Aminoácidos)">🍃 Algas / Bioestimulante</option>
-              <option value="Otro foliar">🧪 Otro tratamiento</option>
+              <option value="Bioestimulante (Algas)">🍃 Algas / Bioestimulante</option>
+              <option value="Otro tratamiento">🧪 Otro tratamiento</option>
             </select>
           </div>
           <div>
-            <label class="block text-[11px] font-bold text-slate-300 mb-1">Volumen Pulverizador</label>
-            <input id="log-liters" type="number" step="0.5" value="1.0" class="touch-input w-full font-mono text-xs" />
+            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Volumen</label>
+            <input id="log-liters" type="number" step="0.5" value="1.0" class="ios-input w-full font-mono text-xs" />
           </div>
         </div>
       `;
     } else if (type === 'poda') {
       dyn.innerHTML = `
         <div>
-          <label class="block text-[11px] font-bold text-slate-300 mb-1">Tipo de Intervención</label>
-          <select id="log-prune-type" class="touch-input w-full text-xs">
-            <option value="Poda Apical">Poda Apical (Corte del ápice central)</option>
-            <option value="Poda FIM">Poda FIM (80% del brote)</option>
+          <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Tipo de Intervención</label>
+          <select id="log-prune-type" class="ios-input w-full text-xs">
+            <option value="Poda Apical">Poda Apical (Ápice principal)</option>
+            <option value="Poda FIM">Poda FIM</option>
             <option value="Defoliación de bajos (Lollipop)">Defoliación de bajos (Lollipop)</option>
             <option value="LST (Low Stress Training)">LST / Guiado de ramas</option>
-            <option value="Corte de esquejes">Corte de esquejes</option>
+            <option value="Esquejes">Corte de esquejes</option>
           </select>
         </div>
       `;
@@ -830,12 +813,12 @@ const GrowlogsModule = {
       dyn.innerHTML = `
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-[11px] font-bold text-slate-300 mb-1">Nueva Maceta</label>
-            <input id="log-pot-size" type="text" placeholder="Ej: 15 L Geotextil" class="touch-input w-full text-xs" />
+            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Nueva Maceta</label>
+            <input id="log-pot-size" type="text" placeholder="Ej: 15 L Geotextil" class="ios-input w-full text-xs" />
           </div>
           <div>
-            <label class="block text-[11px] font-bold text-slate-300 mb-1">Sustrato / Enraizante</label>
-            <input id="log-substrate" type="text" placeholder="Ej: Growmix + Micorrizas" class="touch-input w-full text-xs" />
+            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Sustrato</label>
+            <input id="log-substrate" type="text" placeholder="Ej: Growmix + Micorrizas" class="ios-input w-full text-xs" />
           </div>
         </div>
       `;
@@ -874,10 +857,9 @@ const GrowlogsModule = {
     await Storage.saveLog(newLog);
     this.closeLogModal();
     await this.renderTimeline();
-    showToast('✅ Evento registrado en bitácora');
+    showToast('Entrada guardada en la bitácora');
   },
 
-  /* Formulario de Planta */
   openPlantModal(editPlant = null) {
     $('input-plant-id').value = editPlant ? editPlant.id : '';
     $('modal-plant-title').textContent = editPlant ? 'Editar Planta' : 'Nueva Planta';
@@ -936,7 +918,7 @@ const GrowlogsModule = {
     if (this.activePlantId === id) {
       this.renderPlantHero(plant);
     }
-    showToast(id === $('input-plant-id').value ? 'Planta actualizada' : '🌱 Planta creada con éxito');
+    showToast(id === $('input-plant-id').value ? 'Planta actualizada' : 'Planta guardada');
   },
 
   openLightbox(src, caption) {
@@ -948,7 +930,7 @@ const GrowlogsModule = {
 };
 
 /* ==========================================================================
-   5. MÓDULO CALCULADORA DE FERTILIZANTES & MODO DE CULTIVO
+   5. MÓDULO RIEGO & NUTRIENTES (CALCULADORA MINIMALISTA)
    ========================================================================== */
 const BRANDS = {
   topcrop: {
@@ -987,7 +969,7 @@ const BRANDS = {
     name: 'Advanced Nutrients',
     type: 'pH Perfect Mineral',
     products: [
-      { name: 'pH Perfect Micro', role: 'Base Micronutrientes', unit: 'ml', doses: { plantula: 1, vegetativo: 3, transicion: 4, flora_temprana: 4, flora_tardia: 4 } },
+      { name: 'pH Perfect Micro', role: 'Base Micros', unit: 'ml', doses: { plantula: 1, vegetativo: 3, transicion: 4, flora_temprana: 4, flora_tardia: 4 } },
       { name: 'pH Perfect Grow', role: 'Base Nitrógeno', unit: 'ml', doses: { plantula: 1, vegetativo: 3, transicion: 4, flora_temprana: 4, flora_tardia: 4 } },
       { name: 'pH Perfect Bloom', role: 'Base Fósforo/Potasio', unit: 'ml', doses: { plantula: 1, vegetativo: 3, transicion: 4, flora_temprana: 4, flora_tardia: 4 } },
       { name: 'Big Bud', role: 'Booster de Flores', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 0, flora_temprana: 2, flora_tardia: 0 } },
@@ -1046,11 +1028,11 @@ const CalculatorModule = {
     document.querySelectorAll('[data-mode-btn]').forEach((btn) => {
       btn.addEventListener('click', () => {
         this.mode = btn.dataset.modeBtn;
+        document.querySelectorAll('[data-mode-btn]').forEach((b) => b.classList.toggle('active', b === btn));
         this.renderMode();
       });
     });
 
-    // Botón para transferir la receta calculada directamente a la bitácora
     $('btn-calc-log-to-plant').addEventListener('click', () => {
       if (!GrowlogsModule.plants.length) {
         showToast('No tenés plantas creadas');
@@ -1063,7 +1045,6 @@ const CalculatorModule = {
       if (!plant) return;
       GrowlogsModule.activePlantId = plant.id;
 
-      // Obtener resumen de productos
       const brandData = BRANDS[this.brand];
       const prods = brandData.products
         .filter((p) => p.doses[this.stage] > 0)
@@ -1082,105 +1063,93 @@ const CalculatorModule = {
   },
 
   renderMode() {
-    document.querySelectorAll('[data-mode-btn]').forEach((btn) => {
-      const active = btn.dataset.modeBtn === this.mode;
-      btn.className = `mode-toggle-btn rounded-lg py-1.5 px-3 text-xs font-bold transition ${
-        active ? 'bg-emerald-500 text-black shadow' : 'text-slate-400 hover:text-white'
-      }`;
-    });
-
     const cont = $('mode-timeline-container');
     if (this.mode === 'outdoor') {
       cont.innerHTML = `
-        <div class="rounded-xl border border-emerald-500/15 bg-canna-950 p-3 text-xs space-y-2">
+        <div class="ios-card p-3.5 text-xs space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-400">Outdoor Hemisferio Sur (Argentina)</span>
-            <span class="font-mono text-[11px] text-slate-400">Fotoperiódicas en Buenos Aires</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Outdoor Hemisferio Sur</span>
+            <span class="font-mono text-[11px] text-neutral-400">Buenos Aires / Argentina</span>
           </div>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-            <div class="rounded-lg bg-canna-900 border border-lime-500/20 p-2">
-              <span class="text-[9px] uppercase font-bold text-lime-400 block">Sept / Oct</span>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
+            <div class="rounded-xl bg-neutral-900 border border-white/[0.06] p-2">
+              <span class="text-[9px] uppercase font-bold text-neutral-400 block">Sept / Oct</span>
               <strong class="text-white text-xs block">🌱 Germinación</strong>
-              <p class="text-[10px] text-slate-400 mt-0.5">Inicio en Cuarto Creciente</p>
             </div>
-            <div class="rounded-lg bg-canna-900 border border-emerald-500/20 p-2">
-              <span class="text-[9px] uppercase font-bold text-emerald-400 block">Nov – Ene</span>
+            <div class="rounded-xl bg-neutral-900 border border-white/[0.06] p-2">
+              <span class="text-[9px] uppercase font-bold text-neutral-400 block">Nov – Ene</span>
               <strong class="text-white text-xs block">🌿 Vegetativo</strong>
-              <p class="text-[10px] text-slate-400 mt-0.5">&gt; 14 h de sol · Podas</p>
             </div>
-            <div class="rounded-lg bg-canna-900 border border-amber-500/20 p-2">
-              <span class="text-[9px] uppercase font-bold text-amber-400 block">Febrero</span>
-              <strong class="text-white text-xs block">⚡ Pre-floración</strong>
-              <p class="text-[10px] text-slate-400 mt-0.5">Stretch y primeros pistilos</p>
+            <div class="rounded-xl bg-neutral-900 border border-white/[0.06] p-2">
+              <span class="text-[9px] uppercase font-bold text-neutral-400 block">Febrero</span>
+              <strong class="text-white text-xs block">⚡ Pre-flora</strong>
             </div>
-            <div class="rounded-lg bg-canna-900 border border-pink-500/20 p-2">
-              <span class="text-[9px] uppercase font-bold text-pink-400 block">Mar / Abr</span>
+            <div class="rounded-xl bg-neutral-900 border border-white/[0.06] p-2">
+              <span class="text-[9px] uppercase font-bold text-neutral-400 block">Mar / Abr</span>
               <strong class="text-white text-xs block">💎 Cosecha</strong>
-              <p class="text-[10px] text-slate-400 mt-0.5">Engorde · Corte en Luna Nueva</p>
             </div>
           </div>
         </div>
       `;
     } else {
       cont.innerHTML = `
-        <div class="rounded-xl border border-emerald-500/15 bg-canna-950 p-3 text-xs space-y-1.5">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-sky-400">Modo Indoor (Semanas)</span>
-          <p class="text-slate-300">Controlá el fotoperíodo artificial: <strong>18/6</strong> para crecimiento vegetativo (4 a 6 semanas) y cambiá a <strong>12/12</strong> para inducir la floración (8 a 10 semanas).</p>
+        <div class="ios-card p-3.5 text-xs space-y-1 text-neutral-300">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">Modo Indoor (Semanas)</span>
+          <p>Fotoperíodo <strong>18/6</strong> para crecimiento y <strong>12/12</strong> para inducir la floración.</p>
         </div>
       `;
     }
   },
 
   render() {
-    // Renderizado de tarjetas de marcas
     $('brand-cards-grid').innerHTML = Object.entries(BRANDS).map(([k, b]) => {
       const active = k === this.brand;
       return `
         <button type="button" data-brand="${k}"
           class="rounded-xl border p-2.5 text-left transition ${
-            active ? 'border-emerald-400 bg-emerald-500/15 text-white' : 'border-emerald-500/10 bg-canna-950 text-slate-400 hover:text-white'
+            active ? 'border-white bg-white text-black font-bold' : 'border-white/[0.08] bg-neutral-900 text-neutral-400 hover:text-white'
           }">
-          <div class="font-bold text-xs">${b.name}</div>
-          <div class="text-[10px] text-slate-500">${b.type}</div>
+          <div class="text-xs leading-tight">${b.name}</div>
+          <div class="text-[10px] opacity-75">${b.type}</div>
         </button>
       `;
     }).join('');
 
     const brandData = BRANDS[this.brand];
-    $('result-title').textContent = `Receta ${brandData.name} · ${STAGES[this.stage].label}`;
-    $('result-subtitle').textContent = `Cálculo para ${this.liters} litros de agua`;
+    $('result-title').textContent = `${brandData.name} · ${STAGES[this.stage].label}`;
+    $('result-subtitle').textContent = `Dosis calculadas para ${this.liters} litros de agua`;
 
     const tbody = $('fertilizer-table-body');
     const rows = brandData.products.filter((p) => p.doses[this.stage] > 0);
 
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-slate-500">Sin productos para esta etapa.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-neutral-500">Sin productos para esta etapa.</td></tr>`;
     } else {
       tbody.innerHTML = rows.map((p) => {
         const dose = p.doses[this.stage];
         const total = (dose * this.liters).toFixed(1);
         return `
-          <tr class="hover:bg-emerald-500/5">
-            <td class="py-2 pl-3 pr-2 font-bold text-white">${p.name} <span class="text-[10px] font-normal text-slate-500 block">${p.role}</span></td>
-            <td class="py-2 px-2 text-right font-mono text-slate-400">${dose} ${p.unit}/L</td>
-            <td class="py-2 px-3 text-right font-mono font-bold text-emerald-300">${total} ${p.unit}</td>
+          <tr class="hover:bg-white/[0.02]">
+            <td class="py-2 pr-2 text-white font-medium">${p.name} <span class="text-[10px] text-neutral-500 block">${p.role}</span></td>
+            <td class="py-2 px-2 text-right font-mono text-neutral-400">${dose} ${p.unit}/L</td>
+            <td class="py-2 pl-2 text-right font-mono font-bold text-white">${total} ${p.unit}</td>
           </tr>
         `;
       }).join('');
     }
 
     $('mixing-protocol-box').innerHTML = `
-      <p>💡 <strong>Orden de dilución:</strong> Agregá primero los aditivos/bases al agua y mezclá bien antes de medir el pH. Ajustá el pH entre <strong>5.8 y 6.2</strong> en vegetativo y <strong>6.2 a 6.8</strong> en floración.</p>
+      Mezclá bien cada producto en el agua antes de incorporar el siguiente. Medí y ajustá el pH al final.
     `;
   }
 };
 
 /* ==========================================================================
-   6. MÓDULO CALENDARIO LUNAR 2026/2027 (HEMISFERIO SUR)
+   6. MÓDULO CALENDARIO LUNAR (POÉTICO & MINIMALISTA)
    ========================================================================== */
 const LunarModule = {
   year: 2026,
-  month: 10, // Noviembre
+  month: 10,
 
   init() {
     const selM = $('select-lunar-month');
@@ -1215,43 +1184,41 @@ const LunarModule = {
   },
 
   render() {
+    // Luna monocromática y limpia orientada al hemisferio sur
     $('lunar-hero-svg').innerHTML = `
       <svg viewBox="0 0 100 100" class="h-16 w-16">
-        <circle cx="50" cy="50" r="45" fill="#0f1512" stroke="#34d399" stroke-width="2"/>
-        <path d="M 50 5 A 45 45 0 0 0 50 95 A 15 45 0 0 1 50 5" fill="#34d399"/>
+        <circle cx="50" cy="50" r="44" fill="#141416" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+        <path d="M 50 6 A 44 44 0 0 0 50 94 A 12 44 0 0 1 50 6" fill="#ffffff"/>
       </svg>
     `;
 
-    $('lunar-phase-title').textContent = 'Cuarto Menguante (Descenso de Savia)';
-    $('lunar-phase-meta').textContent = 'Fase óptima para labores de raíz, esquejes y podas';
+    $('lunar-phase-title').textContent = 'Cuarto Menguante';
+    $('lunar-phase-meta').textContent = 'Descenso de savia hacia las raíces';
 
     $('lunar-day-recommendation').innerHTML = `
-      <div class="space-y-1">
-        <span class="rounded bg-sky-500/15 border border-sky-400/30 px-2 py-0.5 text-[10px] font-bold text-sky-300">✂️ Labores de la Fase</span>
-        <p class="text-slate-300 font-semibold mt-1">Trasplantes, Podas Apicales y Esquejes</p>
-        <p class="text-slate-400 text-[11px]">La savia desciende hacia las raíces: menor estrés por corte y cicatrización acelerada.</p>
-      </div>
+      <span class="badge-mono text-[10px]">Labores recomendadas</span>
+      <p class="text-white font-semibold text-xs mt-1">Podas, Trasplantes y Esquejes</p>
+      <p class="text-neutral-400 text-[11px] mt-0.5">La savia desciende: menor estrés por herida y cicatrización óptima.</p>
     `;
 
     $('lunar-task-cards').innerHTML = `
-      <div class="app-card p-3 space-y-1 text-xs">
-        <span class="text-lime-400 font-bold">🌱 Cuarto Creciente / Llena</span>
-        <p class="text-slate-300">Germinación &amp; Riegos Foliares</p>
-        <p class="text-[11px] text-slate-500">Savia en ascenso hacia ramas y hojas superiores.</p>
+      <div class="ios-card p-3 space-y-1 text-xs">
+        <span class="text-white font-bold">🌱 Creciente / Llena</span>
+        <p class="text-neutral-300">Germinación &amp; Foliares</p>
+        <p class="text-[11px] text-neutral-500">Savia en ramas y hojas.</p>
       </div>
-      <div class="app-card p-3 space-y-1 text-xs border-sky-400/30">
-        <span class="text-sky-300 font-bold">✂️ Cuarto Menguante</span>
-        <p class="text-slate-300">Trasplantes &amp; Podas</p>
-        <p class="text-[11px] text-slate-500">Savia concentrada en la raíz; mínimo sangrado.</p>
+      <div class="ios-card p-3 space-y-1 text-xs border-white/20">
+        <span class="text-white font-bold">✂️ Cuarto Menguante</span>
+        <p class="text-neutral-300">Podas &amp; Trasplantes</p>
+        <p class="text-[11px] text-neutral-500">Savia en raíces.</p>
       </div>
-      <div class="app-card p-3 space-y-1 text-xs">
-        <span class="text-amber-400 font-bold">🌾 Luna Nueva</span>
-        <p class="text-slate-300">Cosecha &amp; Reposo</p>
-        <p class="text-[11px] text-slate-500">Menor humedad interna en cogollos para un secado óptimo.</p>
+      <div class="ios-card p-3 space-y-1 text-xs">
+        <span class="text-white font-bold">🌾 Luna Nueva</span>
+        <p class="text-neutral-300">Cosecha &amp; Reposo</p>
+        <p class="text-[11px] text-neutral-500">Menor humedad interna.</p>
       </div>
     `;
 
-    // Grilla del mes simple y limpia
     const grid = $('lunar-calendar-grid');
     const daysInMonth = new Date(this.year, this.month + 1, 0).getDate();
     const firstDay = (new Date(this.year, this.month, 1).getDay() + 6) % 7;
@@ -1259,11 +1226,11 @@ const LunarModule = {
     let cells = '';
     for (let i = 0; i < firstDay; i++) cells += '<div></div>';
     for (let d = 1; d <= daysInMonth; d++) {
-      const isSpecial = d === 9 || d === 17 || d === 24;
+      const isKey = d === 9 || d === 17 || d === 24;
       cells += `
-        <div class="app-card p-1 text-center min-h-[2.8rem] flex flex-col justify-between ${isSpecial ? 'border-emerald-400/40 bg-emerald-500/10' : ''}">
-          <span class="text-[11px] font-mono font-bold text-slate-300">${d}</span>
-          <span class="text-[9px] text-emerald-400">${d === 9 ? '🌑' : d === 17 ? '🌓' : d === 24 ? '🌕' : '·'}</span>
+        <div class="ios-card p-1 text-center min-h-[2.8rem] flex flex-col justify-between ${isKey ? 'border-white/30 bg-white/5' : ''}">
+          <span class="text-[11px] font-mono font-medium text-neutral-300">${d}</span>
+          <span class="text-[9px] text-white">${d === 9 ? '🌑' : d === 17 ? '🌓' : d === 24 ? '🌕' : '·'}</span>
         </div>
       `;
     }
@@ -1272,7 +1239,7 @@ const LunarModule = {
 };
 
 /* ==========================================================================
-   7. MÓDULO PREVENCIÓN DE PLAGAS (MIP)
+   7. MÓDULO CUIDADOS & PREVENCIÓN (MIP)
    ========================================================================== */
 const PestModule = {
   init() {
@@ -1290,54 +1257,40 @@ const PestModule = {
     $('pest-alert-card').innerHTML = `
       <div class="flex items-center justify-between gap-3">
         <div>
-          <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Protección Foliar Preventiva</span>
-          <h3 class="text-base font-bold text-white mt-0.5">Próxima Aplicación Sugerida: En 5 días</h3>
-          <p class="text-xs text-slate-400">Protocolo regular cada ${interval} días al atardecer.</p>
+          <span class="badge-mono text-[10px]">Prevención Activa</span>
+          <h3 class="text-base font-bold text-white mt-1">Próxima aplicación sugerida en 5 días</h3>
+          <p class="text-xs text-neutral-400">Rutina cada ${interval} días al atardecer.</p>
         </div>
         <span class="text-2xl">🛡️</span>
       </div>
     `;
 
     $('pest-biocontrol-cards').innerHTML = `
-      <div class="app-card p-4 space-y-2 text-xs">
+      <div class="ios-card p-4 space-y-2 text-xs">
         <div class="flex items-center justify-between">
           <strong class="text-white text-sm">🌿 Aceite de Neem + Jabón Potásico</strong>
-          <span class="rounded bg-emerald-500/15 text-emerald-300 px-2 py-0.5 text-[10px] font-bold">Vegetativo &amp; Pre-flora</span>
+          <span class="badge-mono text-[10px]">Vegetativo</span>
         </div>
-        <p class="text-slate-300">Para tu pulverizador de <strong>${liters} L</strong>:</p>
+        <p class="text-neutral-400">Dosis para tu pulverizador de <strong>${liters} L</strong>:</p>
         <div class="flex gap-2 font-mono">
-          <span class="rounded bg-canna-950 px-2 py-1 border border-emerald-500/20 text-emerald-300 font-bold">${(2 * liters).toFixed(1)} ml Neem</span>
-          <span class="rounded bg-canna-950 px-2 py-1 border border-lime-500/20 text-lime-300 font-bold">${(5 * liters).toFixed(1)} ml Potásico</span>
+          <span class="badge-mono text-white">${(2 * liters).toFixed(1)} ml Neem</span>
+          <span class="badge-mono text-white">${(5 * liters).toFixed(1)} ml Potásico</span>
         </div>
-        <p class="text-slate-400 text-[11px] mt-1">Prevención de trips, mosca blanca y arañuela roja. Cortar al formarse los primeros cogollos.</p>
+        <p class="text-neutral-400 text-[11px] mt-1">Previene trips, arañuela y mosca blanca. Aplicar en el envés de las hojas.</p>
       </div>
 
-      <div class="app-card p-4 space-y-2 text-xs">
+      <div class="ios-card p-4 space-y-2 text-xs">
         <div class="flex items-center justify-between">
           <strong class="text-white text-sm">🐛 Bacillus thuringiensis (Bt)</strong>
-          <span class="rounded bg-sky-500/15 text-sky-300 px-2 py-0.5 text-[10px] font-bold">Vital en Floración Outdoor</span>
+          <span class="badge-mono text-[10px]">Floración Outdoor</span>
         </div>
-        <p class="text-slate-300">Para tu pulverizador de <strong>${liters} L</strong>:</p>
+        <p class="text-neutral-400">Dosis para tu pulverizador de <strong>${liters} L</strong>:</p>
         <div class="font-mono">
-          <span class="rounded bg-canna-950 px-2 py-1 border border-sky-500/20 text-sky-300 font-bold">${(1 * liters).toFixed(1)} g Bt en polvo</span>
+          <span class="badge-mono text-white">${(1 * liters).toFixed(1)} g Bt en polvo</span>
         </div>
-        <p class="text-slate-400 text-[11px] mt-1">Control biológico de orugas e isocas que pudren los cogollos desde adentro (Botrytis). Aplicar al atardecer.</p>
+        <p class="text-neutral-400 text-[11px] mt-1">Control biológico de orugas e isocas que dañan los cogollos desde adentro.</p>
       </div>
     `;
-
-    $('pest-schedule-tbody').innerHTML = [
-      { date: '12 Nov', bio: 'Neem + Potásico', pest: 'Trips y Arañuela', mode: 'Foliar envés' },
-      { date: '24 Nov', bio: 'Neem + Potásico', pest: 'Prevención general', mode: 'Foliar envés' },
-      { date: '06 Dic', bio: 'Bacillus thuringiensis', pest: 'Orugas / Isocas', mode: 'Pulverizar al atardecer' },
-      { date: '18 Dic', bio: 'Bacillus thuringiensis', pest: 'Refuerzo cogollos', mode: 'Sin sol directo' }
-    ].map((r) => `
-      <tr class="hover:bg-emerald-500/5">
-        <td class="py-2 pl-3 pr-2 font-mono text-slate-300 font-bold">${r.date}</td>
-        <td class="py-2 px-2 text-emerald-300 font-semibold">${r.bio}</td>
-        <td class="py-2 px-2 text-slate-400">${r.pest}</td>
-        <td class="hidden sm:table-cell py-2 pl-2 pr-3 text-slate-500">${r.mode}</td>
-      </tr>
-    `).join('');
   }
 };
 
@@ -1355,7 +1308,7 @@ const BackupModule = {
       a.href = URL.createObjectURL(blob);
       a.download = `cannasur-bitacora-${todayDateStr()}.json`;
       a.click();
-      showToast('📥 Copia de seguridad descargada');
+      showToast('Copia JSON descargada');
     });
 
     $('input-backup-import').addEventListener('change', async (e) => {
@@ -1371,20 +1324,19 @@ const BackupModule = {
           for (const l of data.logs) await Storage.saveLog(l);
         }
         await GrowlogsModule.loadPlants();
-        showToast('📤 Copia de seguridad restaurada');
+        showToast('Copia restaurada con éxito');
       } catch {
-        showToast('Archivo de respaldo no válido');
+        showToast('Archivo no válido');
       }
     });
 
     $('btn-reset-app').addEventListener('click', () => {
-      if (!confirm('¿Restablecer todo a valores de fábrica? Se borrarán tus plantas y registros locales.')) return;
+      if (!confirm('¿Restablecer todo a valores de fábrica? Se borrarán tus plantas locales.')) return;
       localStorage.clear();
       indexedDB.deleteDatabase(DB_NAME);
       location.reload();
     });
 
-    // Exportar Canvas Ficha
     $('btn-open-export').addEventListener('click', () => {
       $('export-modal').classList.remove('hidden');
       $('export-modal').classList.add('flex');
@@ -1399,9 +1351,9 @@ const BackupModule = {
       const canvas = $('routine-export-canvas');
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
-      a.download = `cannasur-ficha-${todayDateStr()}.png`;
+      a.download = `cannasur-resumen-${todayDateStr()}.png`;
       a.click();
-      showToast('🖼️ Imagen guardada');
+      showToast('Imagen guardada');
     });
 
     $('btn-download-pdf').addEventListener('click', () => {
@@ -1410,7 +1362,7 @@ const BackupModule = {
         const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
         pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 10, 10, 190, 240);
         pdf.save(`cannasur-reporte-${todayDateStr()}.pdf`);
-        showToast('📄 PDF guardado');
+        showToast('PDF guardado');
       } else {
         window.print();
       }
@@ -1423,48 +1375,49 @@ const BackupModule = {
     canvas.height = 1000;
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = '#080c0a';
+    // Fondo monocromático profundo
+    ctx.fillStyle = '#0a0a0c';
     ctx.fillRect(0, 0, 800, 1000);
 
-    ctx.fillStyle = '#34d399';
-    ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
-    ctx.fillText('CannaSur AR — Reporte de Cultivo', 40, 60);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px -apple-system, sans-serif';
+    ctx.fillText('CannaSur — Resumen de Bitácora', 40, 60);
 
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '16px monospace';
+    ctx.fillStyle = '#a1a1aa';
+    ctx.font = '15px monospace';
     ctx.fillText(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, 40, 95);
 
-    ctx.fillStyle = '#101713';
-    ctx.fillRect(40, 120, 720, 160);
+    ctx.fillStyle = '#141416';
+    ctx.fillRect(40, 120, 720, 180);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
-    ctx.fillText('🌿 Plantas en Seguimiento:', 60, 160);
+    ctx.font = 'bold 20px -apple-system, sans-serif';
+    ctx.fillText('🌱 Plantas en Seguimiento:', 60, 160);
 
-    ctx.font = '16px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '15px -apple-system, sans-serif';
+    ctx.fillStyle = '#d4d4d8';
     let y = 195;
-    GrowlogsModule.plants.slice(0, 3).forEach((p) => {
+    GrowlogsModule.plants.slice(0, 4).forEach((p) => {
       const days = daysDiff(p.germDate, todayDateStr());
       ctx.fillText(`• ${p.name} (${p.strain || p.type}) — Día ${days} (${STAGES[p.stage].label})`, 60, y);
       y += 28;
     });
 
-    ctx.fillStyle = '#101713';
-    ctx.fillRect(40, 310, 720, 240);
-    ctx.fillStyle = '#34d399';
-    ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
-    ctx.fillText('🧪 Calculadora de Nutrición Activa:', 60, 350);
+    ctx.fillStyle = '#141416';
+    ctx.fillRect(40, 330, 720, 220);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px -apple-system, sans-serif';
+    ctx.fillText('💧 Riego y Nutrición Calculada:', 60, 370);
 
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '16px "Plus Jakarta Sans", sans-serif';
-    ctx.fillText(`Marca: ${BRANDS[CalculatorModule.brand].name} · Etapa: ${STAGES[CalculatorModule.stage].label}`, 60, 385);
-    ctx.fillText(`Volumen: ${CalculatorModule.liters} Litros de agua`, 60, 415);
+    ctx.fillStyle = '#d4d4d8';
+    ctx.font = '15px -apple-system, sans-serif';
+    ctx.fillText(`Línea: ${BRANDS[CalculatorModule.brand].name} · Etapa: ${STAGES[CalculatorModule.stage].label}`, 60, 405);
+    ctx.fillText(`Volumen: ${CalculatorModule.liters} Litros`, 60, 435);
   }
 };
 
 /* ==========================================================================
-   9. NAVEGACIÓN PRINCIPAL
+   9. NAVEGACIÓN PRINCIPAL SPA (APPLE TAB BAR)
    ========================================================================== */
 const App = {
   currentView: 'growlogs',
@@ -1497,7 +1450,6 @@ const App = {
 
     if (pushHash) history.replaceState(null, '', `#${viewId}`);
 
-    // Si vuelve a growlogs y había una planta abierta, mantiene o vuelve al dashboard
     if (viewId === 'growlogs' && !GrowlogsModule.activePlantId) {
       GrowlogsModule.showDashboard();
     }
