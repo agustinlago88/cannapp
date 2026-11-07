@@ -64,7 +64,13 @@
       </div>
 
       <!-- Acciones de Cabecera -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <button id="btn-toggle-notifications" type="button"
+          class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-2.5 !min-h-[2.1rem]" title="Recordatorios y alertas de cultivo">
+          <span id="notif-bell-icon">🔔</span>
+          <span id="notif-status-text" class="hidden sm:inline text-[11px]">Recordatorios</span>
+        </button>
+
         <button id="btn-top-new-plant" type="button"
           class="ios-btn ios-btn-primary text-xs !py-1.5 !px-3.5 !min-h-[2.1rem]">
           <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -72,7 +78,7 @@
         </button>
 
         <button id="btn-open-export" type="button"
-          class="hidden sm:inline-flex ios-btn ios-btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.1rem]" title="Exportar ficha técnica">
+          class="hidden md:inline-flex ios-btn ios-btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.1rem]" title="Exportar ficha técnica">
           <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span>Exportar</span>
         </button>
@@ -96,7 +102,7 @@
         <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pt-1">
           <div>
             <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Mi Jardín</h2>
-            <p class="text-xs text-neutral-400 mt-0.5">Seguimiento individual, notas diarias y fotos de tus plantas.</p>
+            <p class="text-xs text-neutral-400 mt-0.5">Seguimiento individual, notas diarias y recordatorios de cultivo.</p>
           </div>
 
           <!-- Métricas Resumen -->
@@ -104,6 +110,48 @@
             <span class="badge-mono"><strong id="stat-total-plants" class="font-mono">0</strong> plantas</span>
             <span class="badge-mono"><strong id="stat-veg-plants" class="font-mono text-neutral-300">0</strong> veg</span>
             <span class="badge-mono"><strong id="stat-flower-plants" class="font-mono text-neutral-300">0</strong> flora</span>
+          </div>
+        </div>
+
+        <!-- ===============================================================
+             HUB DE RECORDATORIOS Y PROCEDIMIENTOS DEL CICLO (APPLE REMINDERS)
+             =============================================================== -->
+        <div id="reminders-hub" class="ios-reminder-card p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-white/10 text-xs">🔔</span>
+              <h3 class="text-sm font-bold text-white tracking-tight">Recordatorios del Ciclo</h3>
+              <span id="reminders-count-badge" class="badge-mono text-[10px] !py-0.5">0 hoy</span>
+            </div>
+            <button id="btn-toggle-cycle-schedule" type="button" class="text-[11px] text-neutral-400 hover:text-white font-medium transition flex items-center gap-1">
+              <span id="cycle-schedule-btn-text">Cronograma completo</span>
+              <span id="cycle-schedule-arrow">▾</span>
+            </button>
+          </div>
+
+          <!-- Banner Permiso Notificaciones Web (Sutil) -->
+          <div id="web-notif-permission-banner" class="hidden rounded-xl bg-neutral-900 border border-white/10 p-2.5 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2">
+              <span>📲</span>
+              <span class="text-neutral-300 text-[11px]">Activa notificaciones para no olvidar riegos ni nutrientes.</span>
+            </div>
+            <button type="button" id="btn-enable-web-notif" class="ios-btn ios-btn-primary text-[10px] !py-1 !px-2.5 !min-h-[1.75rem]">
+              Activar
+            </button>
+          </div>
+
+          <!-- Lista de Recordatorios Activos / Pendientes -->
+          <div id="reminders-active-list" class="space-y-2">
+            <!-- Renderizado dinámicamente -->
+          </div>
+
+          <!-- Cronograma Completo Desplegable -->
+          <div id="cycle-schedule-dropdown" class="hidden border-t border-white/[0.08] pt-3 space-y-2.5">
+            <div class="flex items-center justify-between text-[11px] text-neutral-400">
+              <span class="uppercase tracking-wider font-semibold text-[10px]">Procedimientos programados hasta cosecha</span>
+              <span id="cycle-plant-selected-name" class="font-bold text-white"></span>
+            </div>
+            <div id="cycle-schedule-timeline" class="space-y-2 text-xs max-h-64 overflow-y-auto pr-1"></div>
           </div>
         </div>
 
@@ -406,44 +454,106 @@
     </section>
 
     <!-- ===================================================================
-         VISTA 4: CUIDADOS & PREVENCIÓN (MIP)
+         VISTA 4: SALUD, DIAGNÓSTICO & PREVENCIÓN (MIP)
          =================================================================== -->
-    <section id="view-plagas" class="app-view space-y-4" aria-label="Cuidados">
+    <section id="view-plagas" class="app-view space-y-4" aria-label="Salud y Diagnóstico">
       <div class="space-y-1">
-        <h2 class="text-2xl font-extrabold tracking-tight text-white">Cuidados &amp; Prevención</h2>
-        <p class="text-xs text-neutral-400">Manejo Integrado de Plagas (MIP) con controles biológicos cada 10 a 15 días.</p>
+        <h2 class="text-2xl font-extrabold tracking-tight text-white">Salud &amp; Diagnóstico</h2>
+        <p class="text-xs text-neutral-400">Guía agronómica visual de salud de la planta, deficiencias, excesos y control biológico.</p>
       </div>
 
-      <div id="pest-alert-card" class="ios-card p-4 sm:p-5"></div>
+      <!-- Segmented Switcher de Salud (Apple Style) -->
+      <div class="ios-segmented" id="health-subview-segmented">
+        <button type="button" data-health-subview="diagnostico" class="ios-segmented-item active">🩺 Diagnóstico Visual</button>
+        <button type="button" data-health-subview="mip" class="ios-segmented-item">🛡️ Prevención MIP</button>
+        <button type="button" data-health-subview="tricomas" class="ios-segmented-item">🔬 Cosecha &amp; Tricomas</button>
+      </div>
 
-      <div class="ios-card p-4">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div>
-            <label for="input-pest-last-date" class="block font-semibold text-neutral-300 mb-1">Última Aplicación</label>
-            <input id="input-pest-last-date" type="date" class="ios-input w-full font-mono text-xs [color-scheme:dark]" />
-          </div>
-          <div>
-            <label for="select-pest-interval" class="block font-semibold text-neutral-300 mb-1">Intervalo</label>
-            <select id="select-pest-interval" class="ios-input w-full text-xs">
-              <option value="10">Cada 10 días (Verano / Outdoor)</option>
-              <option value="12" selected>Cada 12 días (Recomendado)</option>
-              <option value="15">Cada 15 días (Mantenimiento)</option>
-            </select>
-          </div>
-          <div>
-            <label for="select-sprayer-liters" class="block font-semibold text-neutral-300 mb-1">Pulverizador</label>
-            <select id="select-sprayer-liters" class="ios-input w-full text-xs font-mono">
-              <option value="0.5">0.5 L (Manual)</option>
-              <option value="1" selected>1.0 L (Estándar)</option>
-              <option value="1.5">1.5 L</option>
-              <option value="2">2.0 L</option>
-              <option value="5">5.0 L (Mochila)</option>
-            </select>
-          </div>
+      <!-- SUBVISTA 1: GUÍA DE DIAGNÓSTICO VISUAL DE LA PLANTA -->
+      <div id="subview-health-diagnostico" class="space-y-4">
+        <!-- Filtros de Categorías de Diagnóstico -->
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1" id="diagnostic-category-filters">
+          <button type="button" data-diag-cat="all" class="badge-mono badge-mono-inverted cursor-pointer">Todas las fichas</button>
+          <button type="button" data-diag-cat="carencias" class="badge-mono cursor-pointer">🟡 Carencias (N-P-K-Mg-Ca)</button>
+          <button type="button" data-diag-cat="excesos" class="badge-mono cursor-pointer">🔴 Exceso &amp; Hoja en garra</button>
+          <button type="button" data-diag-cat="riego" class="badge-mono cursor-pointer">💧 Riego &amp; Estrés</button>
+          <button type="button" data-diag-cat="plagas" class="badge-mono cursor-pointer">🦟 Plagas comunes</button>
+        </div>
+
+        <!-- Grilla de Tarjetas de Diagnóstico con Ilustraciones Vectoriales -->
+        <div id="diagnostic-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <!-- Renderizado dinámicamente -->
         </div>
       </div>
 
-      <div id="pest-biocontrol-cards" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5"></div>
+      <!-- SUBVISTA 2: PREVENCIÓN & MIP (MANEJO INTEGRADO DE PLAGAS) -->
+      <div id="subview-health-mip" class="hidden space-y-4">
+        <div id="pest-alert-card" class="ios-card p-4 sm:p-5"></div>
+
+        <div class="ios-card p-4 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-white uppercase tracking-wider">Parámetros de Pulverización</span>
+            <span class="text-[10px] text-neutral-400">Aplicar al atardecer o con luces apagadas</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
+            <div>
+              <label for="input-pest-last-date" class="block font-semibold text-neutral-300 mb-1">Última Aplicación</label>
+              <input id="input-pest-last-date" type="date" class="ios-input w-full font-mono text-xs [color-scheme:dark]" />
+            </div>
+            <div>
+              <label for="select-pest-interval" class="block font-semibold text-neutral-300 mb-1">Intervalo</label>
+              <select id="select-pest-interval" class="ios-input w-full text-xs">
+                <option value="10">Cada 10 días (Verano / Outdoor)</option>
+                <option value="12" selected>Cada 12 días (Recomendado)</option>
+                <option value="15">Cada 15 días (Mantenimiento)</option>
+              </select>
+            </div>
+            <div>
+              <label for="select-sprayer-liters" class="block font-semibold text-neutral-300 mb-1">Pulverizador</label>
+              <select id="select-sprayer-liters" class="ios-input w-full text-xs font-mono">
+                <option value="0.5">0.5 L (Manual)</option>
+                <option value="1" selected>1.0 L (Estándar)</option>
+                <option value="1.5">1.5 L</option>
+                <option value="2">2.0 L</option>
+                <option value="5">5.0 L (Mochila)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="pest-biocontrol-cards" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5"></div>
+      </div>
+
+      <!-- SUBVISTA 3: TRICOMAS & PUNTO ÓPTIMO DE COSECHA -->
+      <div id="subview-health-tricomas" class="hidden space-y-4">
+        <div class="ios-card p-4 space-y-2">
+          <span class="badge-mono text-[10px]">Maduración Agronómica</span>
+          <h3 class="text-base font-bold text-white">¿Cómo determinar el punto exacto de corte?</h3>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            El color de los pistilos (pelitos) es solo una referencia inicial. La única forma precisa de saber cuándo cosechar es observar las cabezas glandulares de los tricomas con una lupa o microscopio de 60x.
+          </p>
+        </div>
+
+        <!-- 3 Estados de Tricomas -->
+        <div id="trichomes-stages-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <!-- Renderizado dinámicamente -->
+        </div>
+
+        <!-- Protocolo Pre-Cosecha -->
+        <div class="ios-card p-4 space-y-3 text-xs">
+          <h4 class="font-bold text-white uppercase tracking-wider text-[11px]">Protocolo agronómico pre-corte</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="rounded-xl bg-neutral-900 border border-white/[0.06] p-3 space-y-1">
+              <strong class="text-white block">🚿 1. Lavado de raíces (Flush)</strong>
+              <p class="text-neutral-400 text-[11px]">Realizarlo 10 a 14 días antes del corte regando solo con agua sin nutrientes para que la planta consuma sus reservas y no queden sales residuales.</p>
+            </div>
+            <div class="rounded-xl bg-neutral-900 border border-white/[0.06] p-3 space-y-1">
+              <strong class="text-white block">🌑 2. Fase Lunar &amp; Corte</strong>
+              <p class="text-neutral-400 text-[11px]">Cosechar preferentemente en Luna Menguante o Luna Nueva antes de que salga el sol, cuando la concentración de savia en las flores es mínima.</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ===================================================================
@@ -562,9 +672,10 @@
         <span class="ios-tab-icon">
           <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12h6"/><path d="M12 9v6"/>
           </svg>
         </span>
-        <span>Cuidados</span>
+        <span>Diagnóstico</span>
       </button>
 
       <button type="button" data-nav-target="config" class="ios-tab-item">
@@ -647,6 +758,26 @@
           </div>
         </div>
 
+        <!-- Actualizar Estado de Salud -->
+        <div>
+          <label for="input-log-health-update" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Actualizar Salud de la Planta</label>
+          <select id="input-log-health-update" class="ios-input w-full text-xs font-semibold">
+            <option value="keep">Mantener estado actual</option>
+            <option value="optima">🟢 Óptima y vigorosa</option>
+            <option value="carencia_n">🟡 Carencia Nitrógeno (N)</option>
+            <option value="carencia_p">🟡 Carencia Fósforo (P)</option>
+            <option value="carencia_k">🟡 Carencia Potasio (K)</option>
+            <option value="carencia_mg">🟡 Carencia Magnesio (Mg)</option>
+            <option value="carencia_ca">🟡 Carencia Calcio (Ca)</option>
+            <option value="exceso_garra">🔴 Exceso Nitrógeno / Garra</option>
+            <option value="sobre_riego">💧 Exceso de riego (pesada)</option>
+            <option value="falta_riego">🥀 Sedienta (hojas caídas)</option>
+            <option value="estres_calor">☀️ Estrés por calor/luz</option>
+            <option value="plaga">🦟 Alerta plaga / trips</option>
+            <option value="recuperacion">🌱 En recuperación</option>
+          </select>
+        </div>
+
         <button type="submit" class="ios-btn ios-btn-primary w-full text-sm font-bold !py-3">
           Guardar Entrada en Bitácora
         </button>
@@ -719,6 +850,32 @@
               <option value="floracion">🌸 Floración</option>
               <option value="cosecha">💎 Cosecha</option>
             </select>
+          </div>
+        </div>
+
+        <!-- Estado de Salud & Estimación de Ciclo -->
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label for="select-plant-health" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Estado de Salud *</label>
+            <select id="select-plant-health" class="ios-input w-full text-xs font-semibold">
+              <option value="optima" selected>🟢 Óptima y vigorosa</option>
+              <option value="carencia_n">🟡 Carencia Nitrógeno (N)</option>
+              <option value="carencia_p">🟡 Carencia Fósforo (P)</option>
+              <option value="carencia_k">🟡 Carencia Potasio (K)</option>
+              <option value="carencia_mg">🟡 Carencia Magnesio (Mg)</option>
+              <option value="carencia_ca">🟡 Carencia Calcio (Ca)</option>
+              <option value="exceso_garra">🔴 Exceso Nitrógeno / Garra</option>
+              <option value="sobre_riego">💧 Exceso de riego (pesada)</option>
+              <option value="falta_riego">🥀 Sedienta (hojas caídas)</option>
+              <option value="estres_calor">☀️ Estrés calor/luz</option>
+              <option value="plaga">🦟 Alerta plaga / trips</option>
+              <option value="recuperacion">🌱 En recuperación</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="input-plant-cycle-days" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Duración Ciclo (Días)</label>
+            <input id="input-plant-cycle-days" type="number" min="40" max="365" value="140" placeholder="Ej: 140" class="ios-input w-full font-mono text-xs" />
           </div>
         </div>
 

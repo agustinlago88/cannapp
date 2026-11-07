@@ -1,6 +1,8 @@
 /* ==========================================================================
-   CannaSur — Bitácora de Cultivo & Notas de Jardín
+   CannaSur — Bitácora de Cultivo & Asistente Agronómico
    Estética Apple-Like: minimalista, orgánica, blanco y negro.
+   Guía agronómica de salud, indicadores visuales de deficiencias,
+   recordatorios de ciclo y calculadora de riego según maceta.
    ========================================================================== */
 'use strict';
 
@@ -19,6 +21,22 @@ const STAGES = {
   cosecha: { label: 'Cosecha', emoji: '💎', badgeClass: 'badge-mono', desc: 'Maduración de tricomas y secado' }
 };
 
+/* Estados de Salud de la Planta (Inspirados en manuales agronómicos) */
+const HEALTH_STATES = {
+  optima: { label: 'Óptima y Vigorosa', emoji: '🟢', badgeClass: 'health-badge-optima', desc: 'Follaje verde parejo, turgente y sin manchas' },
+  carencia_n: { label: 'Carencia de Nitrógeno (N)', emoji: '🟡', badgeClass: 'health-badge-carencia', desc: 'Hojas viejas amarilleando de abajo hacia arriba' },
+  carencia_p: { label: 'Carencia de Fósforo (P)', emoji: '🟡', badgeClass: 'health-badge-carencia', desc: 'Hojas verde oscuras con manchas bronce y tallos rojos' },
+  carencia_k: { label: 'Carencia de Potasio (K)', emoji: '🟡', badgeClass: 'health-badge-carencia', desc: 'Bordes aserrados secos y quemados hacia arriba' },
+  carencia_mg: { label: 'Carencia de Magnesio (Mg)', emoji: '🟡', badgeClass: 'health-badge-carencia', desc: 'Clorosis internodal en hojas medias (venas verdes)' },
+  carencia_ca: { label: 'Carencia de Calcio (Ca)', emoji: '🟡', badgeClass: 'health-badge-carencia', desc: 'Puntos necróticos de óxido en brotes y hojas nuevas' },
+  exceso_garra: { label: 'Hoja en Garra (Exceso N)', emoji: '🔴', badgeClass: 'health-badge-exceso', desc: 'Puntas curvadas hacia abajo en anzuelo, verde petróleo' },
+  sobre_riego: { label: 'Exceso de Riego', emoji: '💧', badgeClass: 'health-badge-riego', desc: 'Hojas caídas pero pesadas, hinchadas y abultadas' },
+  falta_riego: { label: 'Sedienta (Sub-riego)', emoji: '🥀', badgeClass: 'health-badge-sed', desc: 'Hojas y tallos marchitos, flácidos y sin turgencia' },
+  estres_calor: { label: 'Estrés Calor / Luz', emoji: '☀️', badgeClass: 'health-badge-estres', desc: 'Hojas plegadas en forma de taco o canoa hacia arriba' },
+  plaga: { label: 'Alerta de Plagas', emoji: '🦟', badgeClass: 'health-badge-plaga', desc: 'Picaduras plateadas de trips, arañuela o mosca' },
+  recuperacion: { label: 'En Recuperación', emoji: '🌱', badgeClass: 'health-badge-recuperacion', desc: 'Superando trasplante o estrés controlado' }
+};
+
 const LOG_TYPES = {
   riego_agua: { label: 'Riego con Agua', icon: '💧', badge: 'badge-mono' },
   riego_nutrientes: { label: 'Riego con Nutrientes', icon: '🧪', badge: 'badge-mono' },
@@ -28,6 +46,407 @@ const LOG_TYPES = {
   cambio_etapa: { label: 'Cambio de Etapa', icon: '🌸', badge: 'stage-badge-floracion' },
   nota_foto: { label: 'Nota / Foto', icon: '📷', badge: 'badge-mono' }
 };
+
+/* ==========================================================================
+   ILUSTRACIONES VECTORIALES AGRONÓMICAS DE ALTA PRECISIÓN (SVG)
+   ========================================================================== */
+const SVG_LEAVES = {
+  // Hoja Sana Óptima: Verde vibrante, nervaduras limpias, turgencia perfecta
+  optima: `
+    <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="leafOptima" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#4ade80"/>
+          <stop offset="100%" stop-color="#15803d"/>
+        </linearGradient>
+      </defs>
+      <!-- Foliolo Central -->
+      <path d="M 100 15 C 108 40, 114 70, 100 100 C 86 70, 92 40, 100 15 Z" fill="url(#leafOptima)" stroke="#22c55e" stroke-width="1.2"/>
+      <!-- Foliolos Laterales Superiores -->
+      <path d="M 100 100 C 120 75, 148 55, 160 40 C 146 68, 126 86, 100 100 Z" fill="url(#leafOptima)" opacity="0.95"/>
+      <path d="M 100 100 C 80 75, 52 55, 40 40 C 54 68, 74 86, 100 100 Z" fill="url(#leafOptima)" opacity="0.95"/>
+      <!-- Foliolos Laterales Medios -->
+      <path d="M 100 100 C 125 90, 160 85, 175 75 C 155 95, 128 102, 100 100 Z" fill="url(#leafOptima)" opacity="0.9"/>
+      <path d="M 100 100 C 75 90, 40 85, 25 75 C 45 95, 72 102, 100 100 Z" fill="url(#leafOptima)" opacity="0.9"/>
+      <!-- Foliolos Basales Pequeños -->
+      <path d="M 100 100 C 118 102, 142 105, 155 102 C 140 112, 118 108, 100 100 Z" fill="url(#leafOptima)" opacity="0.85"/>
+      <path d="M 100 100 C 82 102, 58 105, 45 102 C 60 112, 82 108, 100 100 Z" fill="url(#leafOptima)" opacity="0.85"/>
+      <!-- Pecíolo y Nervadura Central -->
+      <line x1="100" y1="100" x2="100" y2="125" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
+      <line x1="100" y1="20" x2="100" y2="100" stroke="#86efac" stroke-width="1" opacity="0.6"/>
+    </svg>
+  `,
+
+  // Carencia de Nitrógeno: Hojas inferiores amarillas, nervaduras desvanecidas
+  carencia_n: `
+    <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="leafNitrogen" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#fef08a"/>
+          <stop offset="60%" stop-color="#facc15"/>
+          <stop offset="100%" stop-color="#ca8a04"/>
+        </linearGradient>
+      </defs>
+      <path d="M 100 15 C 108 40, 114 70, 100 100 C 86 70, 92 40, 100 15 Z" fill="url(#leafNitrogen)"/>
+      <path d="M 100 100 C 120 75, 148 55, 160 40 C 146 68, 126 86, 100 100 Z" fill="url(#leafNitrogen)"/>
+      <path d="M 100 100 C 80 75, 52 55, 40 40 C 54 68, 74 86, 100 100 Z" fill="url(#leafNitrogen)"/>
+      <path d="M 100 100 C 125 90, 160 85, 175 75 C 155 95, 128 102, 100 100 Z" fill="url(#leafNitrogen)"/>
+      <path d="M 100 100 C 75 90, 40 85, 25 75 C 45 95, 72 102, 100 100 Z" fill="url(#leafNitrogen)"/>
+      <!-- Puntas marchitas amarillas/secas -->
+      <polygon points="100,15 103,24 97,24" fill="#a16207"/>
+      <polygon points="160,40 152,44 156,49" fill="#a16207"/>
+      <polygon points="40,40 48,44 44,49" fill="#a16207"/>
+      <line x1="100" y1="100" x2="100" y2="125" stroke="#eab308" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+  `,
+
+  // Toxicidad de Nitrógeno / Hoja en Garra: Verde petróleo oscuro, curvada hacia abajo en anzuelo
+  exceso_garra: `
+    <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="leafClaw" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#022c22"/>
+          <stop offset="100%" stop-color="#064e3b"/>
+        </linearGradient>
+      </defs>
+      <!-- Foliolos con curvatura extrema hacia abajo (Garra de águila) -->
+      <path d="M 100 18 C 114 42, 118 72, 100 100 C 82 72, 86 42, 100 18 Z" fill="url(#leafClaw)" stroke="#14532d" stroke-width="1.2"/>
+      <!-- Punta en gancho hacia abajo -->
+      <path d="M 100 18 Q 106 10 98 6 Q 92 10 97 18 Z" fill="#022c22"/>
+      <path d="M 100 100 C 122 75, 146 62, 155 52 C 158 56, 146 75, 100 100 Z" fill="url(#leafClaw)"/>
+      <path d="M 100 100 C 78 75, 54 62, 45 52 C 42 56, 54 75, 100 100 Z" fill="url(#leafClaw)"/>
+      <!-- Puntas curvadas de los laterales -->
+      <path d="M 155 52 Q 163 56 160 63 Q 152 61 155 52 Z" fill="#022c22"/>
+      <path d="M 45 52 Q 37 56 40 63 Q 48 61 45 52 Z" fill="#022c22"/>
+      <line x1="100" y1="100" x2="100" y2="125" stroke="#064e3b" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+  `,
+
+  // Carencia de Fósforo: Hojas verde azuladas con manchas cobrizas y tallo púrpura
+  carencia_p: `
+    <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="leafPhos" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#14342b"/>
+          <stop offset="100%" stop-color="#092019"/>
+        </linearGradient>
+      </defs>
+      <path d="M 100 15 C 108 40, 114 70, 100 100 C 86 70, 92 40, 100 15 Z" fill="url(#leafPhos)"/>
+      <path d="M 100 100 C 120 75, 148 55, 160 40 C 146 68, 126 86, 100 100 Z" fill="url(#leafPhos)"/>
+      <path d="M 100 100 C 80 75, 52 55, 40 40 C 54 68, 74 86, 100 100 Z" fill="url(#leafPhos)"/>
+      <!-- Manchas cobrizas / púrpuras necróticas -->
+      <circle cx="102" cy="45" r="5" fill="#a16207" opacity="0.85"/>
+      <circle cx="95" cy="65" r="6" fill="#7e22ce" opacity="0.8"/>
+      <circle cx="135" cy="62" r="5" fill="#b45309" opacity="0.85"/>
+      <circle cx="65" cy="62" r="5" fill="#7e22ce" opacity="0.8"/>
+      <!-- Pecíolo rojizo / violáceo característico -->
+      <line x1="100" y1="100" x2="100" y2="125" stroke="#9333ea" stroke-width="3.5" stroke-linecap="round"/>
+    </svg>
+  `,
+
+  // Carencia de Potasio: Bordes serrados quemados y doblados hacia arriba
+  carencia_k: `
+    <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
+      <path d="M 100 15 C 108 40, 114 70, 100 100 C 86 70, 92 40, 100 15 Z" fill="#15803d"/>
+      <path d="M 100 100 C 120 75, 148 55, 160 40 C 146 68, 126 86, 100 100 Z" fill="#15803d"/>
+      <path d="M 100 100 C 80 75, 52 55, 40 40 C 54 68, 74 86, 100 100 Z" fill="#15803d"/>
+      <!-- Bordes externos quemados naranja / marrón cobrizo -->
+      <path d="M 100 15 C 108 35, 112 55, 107 75" fill="none" stroke="#ea580c" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M 100 15 C 92 35, 88 55, 93 75" fill="none" stroke="#ea580c" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M 160 40 C 144 58, 130 72, 118 84" fill="none" stroke="#ea580c" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M 40 40 C 56 58, 70 72, 82 84" fill="none" stroke="#ea580c" stroke-width="3.5" stroke-linecap="round"/>
+      <line x1="100" y1="100" x2="100" y2="125" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+  `,
+
+  // Carencia de Magnesio: Clorosis internodal (venas verdes, tejido entremedio amarillo)
+  carencia_mg: `
+    <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
+      <!-- Fondo amarillo de la hoja -->
+      <path d="M 100 15 C 108 40, 114 70, 100 100 C 86 70, 92 40, 100 15 Z" fill="#fde047"/>
+      <path d="M 100 100 C 120 75, 148 55, 160 40 C 146 68, 126 86, 100 100 Z" fill="#fde047"/>
+      <path d="M 100 100 C 80 75, 52 55, 40 40 C 54 68, 74 86, 100 100 Z" fill="#fde047"/>
+      <!-- Nervaduras primarias y secundarias intensamente VERDES -->
+      <line x1="100" y1="20" x2="100" y2="100" stroke="#15803d" stroke-width="2.8"/>
+      <line x1="100" y1="40" x2="108" y2="35" stroke="#15803d" stroke-width="1.6"/>
+      <line x1="100" y1="40" x2="92" y2="35" stroke="#15803d" stroke-width="1.6"/>
+      <line x1="100" y1="60" x2="110" y2="52" stroke="#15803d" stroke-width="1.6"/>
+      <line x1="100" y1="60" x2="90" y2="52" stroke="#15803d" stroke-width="1.6"/>
+      <line x1="100" y1="100" x2="148" y2="50" stroke="#15803d" stroke-width="2.2"/>
+      <line x1="100" y1="100" x2="52" y2="50" stroke="#15803d" stroke-width="2.2"/>
+      <line x1="100" y1="100" x2="100" y2="125" stroke="#15803d" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+  `,
+
+  // Carencia de Calcio: Brotes nuevos con motas de óxido y deformaciones
+  carencia_ca: `
+    <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
+      <path d="M 100 18 C 109 40, 115 70, 100 100 C 85 70, 91 40, 100 18 Z" fill="#86efac"/>
+      <path d="M 100 100 C 120 75, 148 55, 158 42 C 144 68, 126 86, 100 100 Z" fill="#86efac"/>
+      <path d="M 100 100 C 80 75, 52 55, 42 42 C 56 68, 74 86, 100 100 Z" fill="#86efac"/>
+      <!-- Pecas y manchas de óxido marrón dispersas -->
+      <circle cx="102" cy="38" r="2.5" fill="#b45309"/>
+      <circle cx="96" cy="46" r="3" fill="#9a3412"/>
+      <circle cx="105" cy="58" r="3.5" fill="#b45309"/>
+      <circle cx="130" cy="56" r="3" fill="#9a3412"/>
+      <circle cx="70" cy="56" r="3" fill="#b45309"/>
+      <circle cx="140" cy="48" r="2.5" fill="#9a3412"/>
+      <circle cx="60" cy="48" r="2.5" fill="#b45309"/>
+      <line x1="100" y1="100" x2="100" y2="125" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+  `,
+
+  // Exceso de Riego: Hojas hinchadas, pesadas y convexas curvadas hacia abajo
+  sobre_riego: `
+    <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="leafWaterlog" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#22c55e"/>
+          <stop offset="100%" stop-color="#14532d"/>
+        </linearGradient>
+      </defs>
+      <!-- Foliolos caídos pesadamente con aspecto abultado -->
+      <path d="M 100 35 C 112 55, 116 85, 100 105 C 84 85, 88 55, 100 35 Z" fill="url(#leafWaterlog)"/>
+      <path d="M 100 105 C 124 95, 155 92, 165 80 C 148 105, 126 110, 100 105 Z" fill="url(#leafWaterlog)"/>
+      <path d="M 100 105 C 76 95, 45 92, 35 80 C 52 105, 74 110, 100 105 Z" fill="url(#leafWaterlog)"/>
+      <!-- Gotas de agua pesadas -->
+      <circle cx="100" cy="30" r="3" fill="#38bdf8" opacity="0.8"/>
+      <circle cx="168" cy="78" r="2.5" fill="#38bdf8" opacity="0.8"/>
+      <circle cx="32" cy="78" r="2.5" fill="#38bdf8" opacity="0.8"/>
+      <line x1="100" y1="105" x2="100" y2="125" stroke="#15803d" stroke-width="3.5" stroke-linecap="round"/>
+    </svg>
+  `,
+
+  // Falta de Riego / Sedienta: Hoja marchita, papelosa, flácida y desmayada
+  falta_riego: `
+    <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
+      <g opacity="0.75" transform="rotate(8, 100, 100)">
+        <path d="M 100 45 C 105 65, 108 90, 100 110 C 92 90, 95 65, 100 45 Z" fill="#84cc16"/>
+        <path d="M 100 110 C 115 100, 138 98, 148 90 C 132 110, 118 114, 100 110 Z" fill="#84cc16"/>
+        <path d="M 100 110 C 85 100, 62 98, 52 90 C 68 110, 82 114, 100 110 Z" fill="#84cc16"/>
+        <!-- Pliegues de arrugamiento / falta de turgencia -->
+        <line x1="100" y1="55" x2="100" y2="110" stroke="#4d7c0f" stroke-width="1.2" stroke-dasharray="2,2"/>
+        <line x1="100" y1="110" x2="100" y2="128" stroke="#65a30d" stroke-width="2.5" stroke-linecap="round"/>
+      </g>
+    </svg>
+  `,
+
+  // Estrés por Calor / Exceso de Luz: Hojas plegadas hacia arriba en forma de taco
+  estres_calor: `
+    <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
+      <!-- Foliolo central doblado en forma de V longitudinal -->
+      <path d="M 100 15 C 105 40, 107 70, 100 100 C 93 70, 95 40, 100 15 Z" fill="#15803d"/>
+      <path d="M 100 15 C 103 40, 104 70, 100 100 Z" fill="#4ade80" opacity="0.5"/>
+      <!-- Bordes doblados hacia arriba -->
+      <path d="M 100 100 C 115 75, 138 58, 150 45 C 140 68, 122 84, 100 100 Z" fill="#15803d"/>
+      <path d="M 100 100 C 85 75, 62 58, 50 45 C 60 68, 78 84, 100 100 Z" fill="#15803d"/>
+      <line x1="100" y1="100" x2="100" y2="125" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
+      <!-- Rayos de calor/sol sutiles -->
+      <circle cx="100" cy="10" r="4" fill="#facc15" opacity="0.7"/>
+    </svg>
+  `,
+
+  // Plagas (Trips / Arañuela): Manchas plateadas y excrementos puntiformes
+  plagas: `
+    <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
+      <path d="M 100 15 C 108 40, 114 70, 100 100 C 86 70, 92 40, 100 15 Z" fill="#22c55e"/>
+      <path d="M 100 100 C 120 75, 148 55, 160 40 C 146 68, 126 86, 100 100 Z" fill="#22c55e"/>
+      <path d="M 100 100 C 80 75, 52 55, 40 40 C 54 68, 74 86, 100 100 Z" fill="#22c55e"/>
+      <!-- Raspaduras plateadas de trips -->
+      <ellipse cx="102" cy="45" rx="5" ry="2" fill="#e2e8f0" opacity="0.9" transform="rotate(-15, 102, 45)"/>
+      <ellipse cx="96" cy="62" rx="6" ry="2.5" fill="#e2e8f0" opacity="0.9" transform="rotate(20, 96, 62)"/>
+      <ellipse cx="132" cy="60" rx="5" ry="2" fill="#e2e8f0" opacity="0.9"/>
+      <ellipse cx="68" cy="60" rx="5" ry="2" fill="#e2e8f0" opacity="0.9"/>
+      <!-- Puntos negros de excremento de trips -->
+      <circle cx="105" cy="43" r="1.2" fill="#000000"/>
+      <circle cx="98" cy="65" r="1.2" fill="#000000"/>
+      <circle cx="135" cy="58" r="1.2" fill="#000000"/>
+      <circle cx="65" cy="58" r="1.2" fill="#000000"/>
+      <line x1="100" y1="100" x2="100" y2="125" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+  `
+};
+
+/* ==========================================================================
+   GUÍA VISUAL DE DIAGNÓSTICO AGRONÓMICO (Sin marcas comerciales)
+   ========================================================================== */
+const DIAGNOSTIC_GUIDE = [
+  {
+    id: 'carencia_n',
+    category: 'carencias',
+    title: 'Carencia de Nitrógeno (N)',
+    severity: '🟡 Moderada',
+    badgeClass: 'health-badge-carencia',
+    location: 'Hojas viejas e inferiores (Nutriente móvil)',
+    svg: SVG_LEAVES.carencia_n,
+    symptoms: 'Amarilleo parejo y gradual que comienza en las hojas más viejas de la parte baja. La planta transloca el nitrógeno hacia los brotes nuevos superiores. Si no se trata, las hojas se vuelven completamente amarillas, se secan y caen.',
+    causes: 'Sustrato pobre en materia orgánica, dosis nutricional insuficiente para la velocidad de crecimiento vegetativo, o pH de riego fuera de rango (pH < 6.0 o pH > 7.0) que bloquea la absorción.',
+    solution: '1. Regular el pH del agua de riego a 6.2 – 6.5.\n2. Aplicar un riego con nutrientes ricos en nitrógeno orgánico (humus de lombriz líquido, harina de sangre o enmienda nitrogenada equilibrada).\n3. En casos avanzados, pulverización foliar suave en vegetativo para asimilación rápida por estomas.'
+  },
+  {
+    id: 'exceso_garra',
+    category: 'excesos',
+    title: 'Toxicidad de Nitrógeno / Hoja en Garra',
+    severity: '🔴 Crítica',
+    badgeClass: 'health-badge-exceso',
+    location: 'Hojas medias y superiores',
+    svg: SVG_LEAVES.exceso_garra,
+    symptoms: 'Follaje verde petróleo extremadamente oscuro con textura cerosa. Las puntas de las hojas se curvan violentamente hacia abajo formando un gancho o "garra de águila". Ramas rígidas y retraso en el inicio de la floración.',
+    causes: 'Sobredosificación de fertilizantes ricos en nitrógeno o acumulación excesiva de sales en el sustrato por falta de drenaje adecuado en los riegos.',
+    solution: '1. Suspender inmediatamente todo aporte de nutrientes con nitrógeno.\n2. Realizar un lavado de raíces (flush) con agua desclorada y pH calibrado a 6.3, utilizando 2 a 3 veces el volumen de la maceta.\n3. Reanudar la fertilización 5 a 7 días después a un 40% de la dosis habitual.'
+  },
+  {
+    id: 'carencia_p',
+    category: 'carencias',
+    title: 'Carencia de Fósforo (P)',
+    severity: '🟡 Moderada',
+    badgeClass: 'health-badge-carencia',
+    location: 'Hojas adultas y pecíolos',
+    svg: SVG_LEAVES.carencia_p,
+    symptoms: 'Hojas de un tono verde azulado oscuro opaco. Aparición de manchas necróticas circulares de color bronce, cobre o púrpura. Pecíolos y tallos se tornan de color rojo vino o violáceo. Crecimiento lento y cogollos pequeños.',
+    causes: 'Temperaturas de sustrato inferiores a 15°C (el frío congela la absorción de P), pH descalibrado en floración (debe estar entre 6.3 y 6.8), o demanda no cubierta en pre-floración y engorde.',
+    solution: '1. Asegurar temperatura radicular adecuada (> 18°C).\n2. Corregir pH a 6.5 en suelo.\n3. Aplicar enmiendas fosforadas (harina de huesos, guano de murciélago para flora o base mineral rica en PK).'
+  },
+  {
+    id: 'carencia_k',
+    category: 'carencias',
+    title: 'Carencia de Potasio (K)',
+    severity: '🟡 Moderada',
+    badgeClass: 'health-badge-carencia',
+    location: 'Bordes aserrados de hojas medias',
+    svg: SVG_LEAVES.carencia_k,
+    symptoms: 'Los bordes aserrados y las puntas de las hojas se vuelven amarillos y luego se secan como si estuviesen quemados por fuego. Los bordes se curvan hacia arriba. Disminuye la resistencia a la sequía y la densidad de resina.',
+    causes: 'Exceso de sodio, calcio o magnesio en el agua que compite con el potasio; pH de sustrato demasiado ácido (< 6.0); o consumo masivo durante las semanas 4 a 8 de floración.',
+    solution: '1. Calibrar pH entre 6.4 y 6.8.\n2. Incorporar melaza de caña sin azufre, té de ceniza vegetal limpia o fertilizante PK orgánico/mineral equilibrado.\n3. Lavar raíces suavemente si hay sospecha de bloqueo por sales.'
+  },
+  {
+    id: 'carencia_mg',
+    category: 'carencias',
+    title: 'Carencia de Magnesio (Mg)',
+    severity: '🟡 Moderada',
+    badgeClass: 'health-badge-carencia',
+    location: 'Hojas medias (Nutriente móvil)',
+    svg: SVG_LEAVES.carencia_mg,
+    symptoms: 'Clorosis internodal típica: las nervaduras principales y secundarias se mantienen de un verde oscuro nítido, mientras que el tejido entre las venas se torna amarillo brillante o dorado. Muy frecuente bajo iluminación LED de alta potencia.',
+    causes: 'Uso de agua de ósmosis o agua muy blanda sin mineralización; pH inferior a 6.2; o exceso de potasio o calcio que bloquea el magnesio.',
+    solution: '1. Regular pH del sustrato a 6.3 – 6.6.\n2. Pulverizar de forma foliar sales de Epsom (sulfato de magnesio) a razón de 2g/L con agua tibia al apagar luces.\n3. Incorporar en el riego un suplemento de Calcio-Magnesio (Cal-Mag).'
+  },
+  {
+    id: 'carencia_ca',
+    category: 'carencias',
+    title: 'Carencia de Calcio (Ca)',
+    severity: '🟡 Moderada',
+    badgeClass: 'health-badge-carencia',
+    location: 'Brotes apicales y hojas jóvenes (Nutriente inmóvil)',
+    svg: SVG_LEAVES.carencia_ca,
+    symptoms: 'Aparición de pequeñas pecas o motas necróticas de color marrón óxido dispersas por las hojas superiores y brotes tiernos. Las hojas nuevas nacen deformes, retorcidas o con puntas atrofiadas.',
+    causes: 'Transpiración deficiente por exceso de humedad relativa (> 75%), sustrato ácido con pH < 6.0, o aguas blandas desmineralizadas.',
+    solution: '1. Bajar la humedad relativa en el espacio de cultivo para reactivar el flujo de transpiración que transporta el calcio.\n2. Ajustar pH a 6.4 – 6.7.\n3. Aportar harina de dolomita, cal viva apagada en compost o suplemento equilibrado de Cal-Mag.'
+  },
+  {
+    id: 'sobre_riego',
+    category: 'riego',
+    title: 'Exceso de Riego (Asfixia Radicular)',
+    severity: '💧 Alerta de Manejo',
+    badgeClass: 'health-badge-riego',
+    location: 'Toda la planta',
+    svg: SVG_LEAVES.sobre_riego,
+    symptoms: 'Toda la planta se arquea hacia abajo, pero a diferencia de la falta de agua, las hojas están turgentes, pesadas, hinchadas y abultadas (llenas de líquido). La maceta pesa mucho y el sustrato permanece empapado días enteros.',
+    causes: 'Regar con demasiada frecuencia sin permitir que el sustrato se seque y se oxigene (falta del ciclo seco-húmedo), maceta sin orificios de drenaje limpios o sustrato demasiado arcilloso.',
+    solution: '1. Suspender por completo el riego hasta que la maceta se sienta liviana como una pluma al levantarla.\n2. Mejorar la ventilación e intracción de aire en la zona de macetas.\n3. A futuro, aplicar la regla del 10% al 15% del volumen de la maceta y espaciar los riegos cada 2 a 3 días.'
+  },
+  {
+    id: 'falta_riego',
+    category: 'riego',
+    title: 'Falta de Riego (Deshidratación / Sed)',
+    severity: '🥀 Alerta de Manejo',
+    badgeClass: 'health-badge-sed',
+    location: 'Toda la planta',
+    svg: SVG_LEAVES.falta_riego,
+    symptoms: 'Hojas y tallos completamente flácidos, caídos y sin fuerza celular. Las hojas tienen textura delgada y papelosa, perdiendo todo brillo. La maceta no tiene peso alguno y la tierra se separa del borde de la maceta.',
+    causes: 'Período prolongado sin riego, calor ambiental extremo o tamaño de maceta demasiado pequeño para una planta grande con alta transpiración.',
+    solution: '1. Regar de inmediato y de forma lenta y pausada para que el sustrato seco absorba el agua sin que escurra directamente por los costados.\n2. Utilizar un volumen correspondiente al 15% de la maceta.\n3. La planta recuperará su turgencia natural en 2 a 4 horas.'
+  },
+  {
+    id: 'estres_calor',
+    category: 'riego',
+    title: 'Estrés Térmico / Exceso de Luz (Taco)',
+    severity: '☀️ Moderada',
+    badgeClass: 'health-badge-estres',
+    location: 'Hojas superiores más cercanas a la luz',
+    svg: SVG_LEAVES.estres_calor,
+    symptoms: 'Los bordes de los foliolos se pliegan longitudinalmente hacia arriba adoptando la forma de una canoa o "taco mexicano". Las puntas de las hojas apuntan hacia arriba para reducir la superficie expuesta a la radiación.',
+    causes: 'Lámpara LED o sodio demasiado cerca de la copa de la planta, temperaturas en el dosel superiores a 30°C o mala disipación de calor.',
+    solution: '1. Aumentar la distancia entre la fuente de luz y las puntas de la planta (elevar 10 a 20 cm).\n2. Regular la potencia del dimmer si es LED.\n3. Mejorar la extracción de aire y agregar un ventilador oscilante dirigido entre la lámpara y las copas.'
+  },
+  {
+    id: 'plagas',
+    category: 'plagas',
+    title: 'Plagas Comunes (Trips / Arañuela)',
+    severity: '🦟 Alerta de Manejo',
+    badgeClass: 'health-badge-plaga',
+    location: 'Haz y envés de las hojas',
+    svg: SVG_LEAVES.plagas,
+    symptoms: 'Trips: Manchas plateadas brillantes con aspecto de raspadura en la cara superior de la hoja con diminutos puntitos negros (heces). Arañuela roja: Micropunteado amarillento denso; en etapas avanzadas genera finas telas de araña.',
+    causes: 'Ambiente cálido y seco con escasa ventilación, falta de pulverizaciones preventivas periódicas o introducción de clones/esquejes sin cuarentena previa.',
+    solution: '1. Pulverizar de forma exhaustiva con Aceite de Neem (2ml/L) emulsionado con Jabón Potásico (5ml/L) en ambas caras de las hojas al caer el sol.\n2. Repetir cada 3 a 4 días en caso de plaga activa durante 3 aplicaciones.\n3. Si hay orugas o isocas en floración, aplicar Bacillus thuringiensis (1g/L).'
+  }
+];
+
+/* ==========================================================================
+   GUÍA VISUAL DE MADURACIÓN DE TRICOMAS (PUNTO DE COSECHA)
+   ========================================================================== */
+const TRICHOMES_GUIDE = [
+  {
+    id: 'transparentes',
+    title: '1. Transparentes / Cristalinos',
+    status: 'Inmaduro · No Cortar',
+    badgeClass: 'badge-mono',
+    desc: 'Cabezas glandulares completamente diáfanas como vidrio transparente.',
+    effect: 'Efecto débil, taquicárdico o nulo. Los cannabinoides principales (THC) aún no han sintetizado su pico molecular.',
+    svg: `
+      <svg viewBox="0 0 100 110" class="h-24 w-full object-contain" xmlns="http://www.w3.org/2000/svg">
+        <!-- Tallo del tricoma -->
+        <path d="M 50 100 Q 52 60 50 42" stroke="rgba(255,255,255,0.4)" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <!-- Cabeza glandular transparente reflectiva -->
+        <circle cx="50" cy="36" r="18" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.6)" stroke-width="2"/>
+        <ellipse cx="44" cy="30" rx="6" ry="3" fill="#ffffff" opacity="0.6"/>
+      </svg>
+    `
+  },
+  {
+    id: 'lechosos',
+    title: '2. Lechosos / Nublados',
+    status: 'Pico Máximo de THC',
+    badgeClass: 'badge-mono-inverted',
+    desc: 'Cabezas glandulares de color blanco tiza opaco y lechoso.',
+    effect: 'Pico máximo de concentración de THC. Efecto cerebral, eufórico, lúcido y estimulante. Ideal para sativas y cosechas activas.',
+    svg: `
+      <svg viewBox="0 0 100 110" class="h-24 w-full object-contain" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 50 100 Q 52 60 50 42" stroke="#d4d4d8" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <!-- Cabeza lechosa opaca pura -->
+        <circle cx="50" cy="36" r="18" fill="#ffffff" stroke="#e4e4e7" stroke-width="2.5" filter="drop-shadow(0 0 6px rgba(255,255,255,0.4))"/>
+        <ellipse cx="44" cy="30" rx="5" ry="2.5" fill="#a1a1aa" opacity="0.3"/>
+      </svg>
+    `
+  },
+  {
+    id: 'ambar',
+    title: '3. Ámbar / Dorados',
+    status: 'Maduro · Efecto Corporal',
+    badgeClass: 'health-badge-carencia',
+    desc: 'Cabezas glandulares teñidas de tono ámbar caramelo o miel dorada.',
+    effect: 'Degradación natural de THC hacia CBN. Proporciona un efecto narcótico, analgésico, sedante y relajante muscular profundo.',
+    svg: `
+      <svg viewBox="0 0 100 110" class="h-24 w-full object-contain" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 50 100 Q 52 60 50 42" stroke="#ca8a04" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <!-- Cabeza ámbar dorada -->
+        <circle cx="50" cy="36" r="18" fill="#d97706" stroke="#f59e0b" stroke-width="2.5" filter="drop-shadow(0 0 6px rgba(245,158,11,0.5))"/>
+        <ellipse cx="44" cy="30" rx="5" ry="2.5" fill="#fef08a" opacity="0.6"/>
+      </svg>
+    `
+  }
+];
 
 /* ==========================================================================
    2. UTILIDADES DE FECHA, FORMATO Y DOM
@@ -78,6 +497,7 @@ function timeAgo(dateIsoStr) {
 let toastTimer = null;
 function showToast(msg) {
   const el = $('app-toast');
+  if (!el) return;
   $('app-toast-text').textContent = msg;
   el.style.opacity = '1';
   el.style.transform = 'translate(-50%, 6px)';
@@ -115,7 +535,7 @@ function compressImage(file, maxWidth = 960, quality = 0.78) {
 }
 
 /* ==========================================================================
-   3. GESTOR DE ALMACENAMIENTO OFFLINE (IndexedDB + Fallback)
+   3. GESTOR DE ALMACENAMIENTO OFFLINE (IndexedDB + Fallback LocalStorage)
    ========================================================================== */
 const Storage = {
   db: null,
@@ -264,7 +684,6 @@ const Storage = {
     localStorage.setItem('cannasur_logs', JSON.stringify(logs));
   },
 
-  /* Semilla inicial demo amigable */
   async seedIfEmpty() {
     const plants = await this.getPlants();
     if (plants.length > 0) return;
@@ -277,6 +696,8 @@ const Storage = {
       type: 'fotoperiodica',
       medium: 'sustrato',
       potLiters: 15,
+      cycleDays: 140,
+      healthStatus: 'optima',
       germDate: germDate,
       stage: 'vegetativo',
       createdAt: new Date().toISOString()
@@ -289,7 +710,7 @@ const Storage = {
         plantId: demoPlant.id,
         type: 'transplante',
         dateTime: new Date(Date.now() - 36 * DAY_MS).toISOString(),
-        notes: 'Semilla germinada con vigor en servilleta húmeda. Pasada con cuidado a maceta inicial de 1L con sustrato liviano.',
+        notes: 'Semilla germinada con gran vigor en servilleta húmeda. Pasada con cuidado a maceta inicial de 1L con sustrato liviano.',
         metrics: { potSize: '1 L' }
       },
       {
@@ -297,8 +718,8 @@ const Storage = {
         plantId: demoPlant.id,
         type: 'riego_nutrientes',
         dateTime: new Date(Date.now() - 15 * DAY_MS).toISOString(),
-        notes: 'Primer riego nutricional con micorrizas y estimulante radicular. El cepellón de raíces colonizó todo el fondo.',
-        metrics: { liters: 1.5, ph: 6.2, ec: 0.9, products: 'Amazonia Roots 1g/L + Deeper Underground' }
+        notes: 'Primer riego nutricional con micorrizas y enraizante biológico. El cepellón de raíces colonizó todo el fondo.',
+        metrics: { liters: 1.5, ph: 6.2, ec: 0.9, products: 'Micorrizas 1g/L + Enraizante orgánico' }
       },
       {
         id: 'log-3',
@@ -313,7 +734,7 @@ const Storage = {
         plantId: demoPlant.id,
         type: 'foliar',
         dateTime: new Date(Date.now() - 2 * DAY_MS).toISOString(),
-        notes: 'Pulverización foliar preventiva al caer el sol: Aceite de Neem + Jabón Potásico en ambas caras de las hojas.',
+        notes: 'Pulverización foliar preventiva al caer el sol: Aceite de Neem + Jabón Potásico emulsionado en ambas caras de las hojas.',
         metrics: { foliarType: 'Aceite de Neem + Jabón Potásico', liters: 1.0 }
       }
     ];
@@ -325,7 +746,362 @@ const Storage = {
 };
 
 /* ==========================================================================
-   4. MÓDULO GROWLOGS (BITÁCORA TIPO APPLE NOTES / JOURNAL)
+   4. MÓDULO RECORDATORIOS & NOTIFICACIONES HASTA EL FIN DEL CICLO
+   ========================================================================== */
+const RemindersModule = {
+  activeReminders: [],
+  scheduleExpanded: false,
+
+  async init() {
+    $('btn-toggle-cycle-schedule')?.addEventListener('click', () => {
+      this.scheduleExpanded = !this.scheduleExpanded;
+      const dd = $('cycle-schedule-dropdown');
+      const arrow = $('cycle-schedule-arrow');
+      if (dd) dd.classList.toggle('hidden', !this.scheduleExpanded);
+      if (arrow) arrow.textContent = this.scheduleExpanded ? '▴' : '▾';
+      if (this.scheduleExpanded) {
+        this.renderCycleSchedule();
+      }
+    });
+
+    $('btn-toggle-notifications')?.addEventListener('click', () => this.requestNotificationPermission());
+    $('btn-enable-web-notif')?.addEventListener('click', () => this.requestNotificationPermission());
+
+    this.checkNotificationStatus();
+    await this.renderReminders();
+  },
+
+  checkNotificationStatus() {
+    if (!('Notification' in window)) {
+      $('notif-bell-icon').textContent = '🔔';
+      $('web-notif-permission-banner')?.classList.add('hidden');
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      $('notif-bell-icon').textContent = '🔔';
+      $('notif-status-text').textContent = 'Activas';
+      $('btn-toggle-notifications')?.classList.add('border-white/40');
+      $('web-notif-permission-banner')?.classList.add('hidden');
+    } else if (Notification.permission === 'denied') {
+      $('notif-bell-icon').textContent = '🔕';
+      $('notif-status-text').textContent = 'Silenciadas';
+      $('web-notif-permission-banner')?.classList.add('hidden');
+    } else {
+      $('notif-bell-icon').textContent = '🔔';
+      $('notif-status-text').textContent = 'Activar';
+      $('web-notif-permission-banner')?.classList.remove('hidden');
+    }
+  },
+
+  async requestNotificationPermission() {
+    if (!('Notification' in window)) {
+      showToast('Tu navegador no soporta notificaciones de sistema');
+      return;
+    }
+    try {
+      const perm = await Notification.requestPermission();
+      this.checkNotificationStatus();
+      if (perm === 'granted') {
+        showToast('🔔 Notificaciones del cultivo activadas');
+        new Notification('CannaSur — Recordatorios Activos', {
+          body: 'Te avisaremos cuando toque regar, fertilizar o aplicar preventivos.',
+          icon: 'favicon.ico'
+        });
+      } else {
+        showToast('Notificaciones rechazadas en navegador');
+      }
+    } catch {
+      showToast('Error al solicitar permiso');
+    }
+  },
+
+  async calculatePlantReminders(plant) {
+    const logs = await Storage.getLogsByPlant(plant.id);
+    const pot = plant.potLiters || 15;
+    const minWater = (pot * 0.1).toFixed(1);
+    const maxWater = (pot * 0.15).toFixed(1);
+    const defWater = (pot * 0.15).toFixed(1);
+    const reminders = [];
+
+    // 1. RIEGO CON AGUA / NUTRIENTES
+    const lastWater = logs.find((l) => l.type === 'riego_agua' || l.type === 'riego_nutrientes');
+    const daysSinceWater = lastWater ? daysDiff(lastWater.dateTime.split('T')[0], todayDateStr()) : 99;
+
+    if (daysSinceWater >= 3) {
+      reminders.push({
+        id: `rem-water-${plant.id}`,
+        plantId: plant.id,
+        plantName: plant.name,
+        type: 'riego_agua',
+        priority: 'urgent',
+        badge: '💧 Urgente',
+        badgeClass: 'health-badge-critica',
+        title: `Riego pendiente para ${plant.name}`,
+        desc: `Han pasado ${daysSinceWater} días desde el último riego. Riego sugerido para maceta de ${pot} L: ~${minWater} a ${maxWater} L.`,
+        actionText: 'Regar',
+        defaultLiters: defWater
+      });
+    } else if (daysSinceWater === 2) {
+      reminders.push({
+        id: `rem-water-${plant.id}`,
+        plantId: plant.id,
+        plantName: plant.name,
+        type: 'riego_agua',
+        priority: 'today',
+        badge: '💧 Toca Hoy',
+        badgeClass: 'health-badge-riego',
+        title: `Riego de hoy: ${plant.name}`,
+        desc: `Sustrato en ciclo seco-húmedo óptimo. Preparar ~${minWater} a ${maxWater} L de agua declorada con pH 6.2 - 6.5.`,
+        actionText: 'Regar',
+        defaultLiters: defWater
+      });
+    }
+
+    // 2. FERTILIZACIÓN SEMANAL
+    if (plant.stage !== 'cosecha' && plant.stage !== 'plantula') {
+      const lastNutr = logs.find((l) => l.type === 'riego_nutrientes');
+      const daysSinceNutr = lastNutr ? daysDiff(lastNutr.dateTime.split('T')[0], todayDateStr()) : 99;
+      if (daysSinceNutr >= 6) {
+        reminders.push({
+          id: `rem-nutr-${plant.id}`,
+          plantId: plant.id,
+          plantName: plant.name,
+          type: 'riego_nutrientes',
+          priority: 'today',
+          badge: '🧪 Nutrición',
+          badgeClass: 'badge-mono-inverted',
+          title: `Fertilización sugerida: ${plant.name}`,
+          desc: `Último aporte hace ${daysSinceNutr} días. Dosis calculada para ${pot} L de maceta (~${defWater} L de solución nutritiva).`,
+          actionText: 'Nutrir',
+          defaultLiters: defWater
+        });
+      }
+    }
+
+    // 3. PREVENCIÓN FOLIAR (MIP) CADA 10 A 12 DÍAS
+    if (plant.stage !== 'cosecha') {
+      const lastFoliar = logs.find((l) => l.type === 'foliar');
+      const daysSinceFoliar = lastFoliar ? daysDiff(lastFoliar.dateTime.split('T')[0], todayDateStr()) : 99;
+      if (daysSinceFoliar >= 11) {
+        const product = plant.stage === 'floracion' ? 'Bacillus thuringiensis (Bt)' : 'Aceite de Neem + Jabón Potásico';
+        reminders.push({
+          id: `rem-foliar-${plant.id}`,
+          plantId: plant.id,
+          plantName: plant.name,
+          type: 'foliar',
+          priority: 'today',
+          badge: '🌿 Preventivo',
+          badgeClass: 'health-badge-recuperacion',
+          title: `Pulverización foliar: ${plant.name}`,
+          desc: `Han pasado ${daysSinceFoliar} días. Aplicar ${product} en el envés al atardecer para blindar contra plagas.`,
+          actionText: 'Foliar',
+          defaultLiters: 1.0,
+          foliarProduct: product
+        });
+      }
+    }
+
+    // 4. HITOS DEL FIN DEL CICLO (Lavado de raíces y Cosecha)
+    const cycleDays = plant.cycleDays || (plant.type === 'automatica' ? 80 : 140);
+    const daysLived = daysDiff(plant.germDate, todayDateStr());
+    const daysRemaining = cycleDays - daysLived;
+
+    if (daysRemaining <= 12 && daysRemaining > 0 && plant.stage === 'floracion') {
+      reminders.push({
+        id: `rem-flush-${plant.id}`,
+        plantId: plant.id,
+        plantName: plant.name,
+        type: 'riego_agua',
+        priority: 'urgent',
+        badge: '🚿 Lavado Raíces',
+        badgeClass: 'health-badge-alerta',
+        title: `Lavado de raíces previo a cosecha: ${plant.name}`,
+        desc: `Faltan aproximadamente ${daysRemaining} días para el corte estimado. Regar solo con agua limpia sin abonos.`,
+        actionText: 'Registrar Lavado',
+        defaultLiters: (pot * 0.25).toFixed(1)
+      });
+    } else if (daysRemaining <= 0) {
+      reminders.push({
+        id: `rem-harvest-${plant.id}`,
+        plantId: plant.id,
+        plantName: plant.name,
+        type: 'nota_foto',
+        priority: 'urgent',
+        badge: '💎 Cosecha',
+        badgeClass: 'stage-badge-floracion',
+        title: `Cosecha estimada alcanzada: ${plant.name}`,
+        desc: `Día ${daysLived} de ${cycleDays}. Inspeccionar tricomas con lupa de 60x para verificar maduración ámbar.`,
+        actionText: 'Inspeccionar',
+        defaultLiters: 0
+      });
+    }
+
+    return reminders;
+  },
+
+  async renderReminders() {
+    const listEl = $('reminders-active-list');
+    const badgeEl = $('reminders-count-badge');
+    if (!listEl) return;
+
+    const plants = await Storage.getPlants();
+    let all = [];
+
+    for (const p of plants) {
+      const pRems = await this.calculatePlantReminders(p);
+      all = all.concat(pRems);
+    }
+
+    this.activeReminders = all;
+    if (badgeEl) {
+      badgeEl.textContent = all.length > 0 ? `${all.length} pendientes` : 'Al día';
+    }
+
+    if (all.length === 0) {
+      listEl.innerHTML = `
+        <div class="rounded-xl bg-neutral-900/60 border border-white/[0.06] p-3 text-center text-xs text-neutral-400">
+          <span class="text-sm">✨</span> Todas tus plantas están hidratadas y al día. Buen cultivo.
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = all.map((rem) => {
+      const plant = plants.find((p) => p.id === rem.plantId);
+      const health = HEALTH_STATES[plant?.healthStatus] || HEALTH_STATES.optima;
+
+      return `
+        <div class="rounded-xl bg-neutral-900 border border-white/[0.08] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition hover:border-white/20">
+          <div class="flex items-start gap-2.5 min-w-0">
+            <!-- Botón Checkbox Apple Reminders -->
+            <button type="button" class="reminder-checkbox mt-0.5 shrink-0"
+              title="Marcar como realizado"
+              onclick="RemindersModule.quickComplete('${rem.id}')">
+            </button>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="${rem.badgeClass} text-[10px] !py-0.5 !px-2">${rem.badge}</span>
+                <span class="font-bold text-xs text-white truncate">${esc(rem.plantName)}</span>
+                <span class="${health.badgeClass} text-[9px] !py-0 !px-1.5">${health.emoji} ${health.label.split(' ')[0]}</span>
+              </div>
+              <p class="text-[11px] text-neutral-300 mt-1 leading-snug">${esc(rem.desc)}</p>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-1.5 shrink-0">
+            <button type="button" class="ios-btn ios-btn-secondary text-[11px] !py-1 !px-3 !min-h-[2rem]"
+              onclick="RemindersModule.openReminderModal('${rem.id}')">
+              ${rem.actionText} →
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  async quickComplete(reminderId) {
+    const rem = this.activeReminders.find((r) => r.id === reminderId);
+    if (!rem) return;
+
+    const plant = GrowlogsModule.plants.find((p) => p.id === rem.plantId);
+    const pot = plant?.potLiters || 15;
+
+    await Storage.saveLog({
+      id: 'log-' + Date.now(),
+      plantId: rem.plantId,
+      type: rem.type,
+      dateTime: new Date().toISOString(),
+      notes: `Procedimiento completado desde recordatorio del ciclo: ${rem.title}.`,
+      metrics: {
+        liters: rem.defaultLiters ? parseFloat(rem.defaultLiters) : undefined,
+        products: rem.type === 'riego_nutrientes' ? 'Solución nutritiva balanceada' : undefined,
+        foliarType: rem.foliarProduct || undefined,
+        potSize: `${pot} L`
+      }
+    });
+
+    showToast(`✓ Completado: ${rem.title}`);
+    await GrowlogsModule.loadPlants();
+    await this.renderReminders();
+  },
+
+  openReminderModal(reminderId) {
+    const rem = this.activeReminders.find((r) => r.id === reminderId);
+    if (!rem) return;
+
+    GrowlogsModule.activePlantId = rem.plantId;
+    GrowlogsModule.openLogModal(rem.type);
+
+    setTimeout(() => {
+      if ($('log-liters') && rem.defaultLiters) $('log-liters').value = rem.defaultLiters;
+      if ($('log-products') && rem.type === 'riego_nutrientes') $('log-products').value = 'Riego nutricional semanal';
+      if ($('log-foliar-type') && rem.foliarProduct) $('log-foliar-type').value = rem.foliarProduct;
+      if ($('input-log-notes')) $('input-log-notes').value = `Registro completado según cronograma del ciclo: ${rem.title}.`;
+    }, 60);
+  },
+
+  renderCycleSchedule() {
+    const container = $('cycle-schedule-timeline');
+    const plantNameEl = $('cycle-plant-selected-name');
+    if (!container) return;
+
+    const activePlant = GrowlogsModule.activePlantId
+      ? GrowlogsModule.plants.find((p) => p.id === GrowlogsModule.activePlantId)
+      : GrowlogsModule.plants[0];
+
+    if (!activePlant) {
+      container.innerHTML = `<p class="text-neutral-500 italic">No hay plantas creadas para proyectar el ciclo.</p>`;
+      return;
+    }
+
+    if (plantNameEl) plantNameEl.textContent = `${activePlant.name} (${activePlant.type})`;
+
+    const germDate = activePlant.germDate;
+    const daysLived = daysDiff(germDate, todayDateStr());
+    const currentWeek = Math.max(1, Math.floor(daysLived / 7) + 1);
+    const pot = activePlant.potLiters || 15;
+    const isAuto = activePlant.type === 'automatica';
+    const totalWeeks = isAuto ? 11 : 18;
+
+    const weeksPlan = [
+      { w: 'Sem 1-2', days: 'Días 1-14', title: '🌱 Plántula & Enraizamiento', desc: 'Riegos mínimos (~5% sustrato). Estimulante radicular y micorrizas.' },
+      { w: 'Sem 3-4', days: 'Días 15-28', title: '🌿 Vegetativo Temprano', desc: `Riego regular al 10-15% (${(pot * 0.1).toFixed(1)} a ${(pot * 0.15).toFixed(1)} L). Primeras podas LST / apical.` },
+      { w: 'Sem 5-7', days: 'Días 29-49', title: '🌿 Vegetativo Pleno & MIP', desc: 'Pulverización preventiva Neem + Potásico cada 10-12 días. Aporte de Nitrógeno.' },
+      { w: 'Sem 8-9', days: 'Días 50-63', title: '⚡ Transición & Pre-floración', desc: 'Estiramiento (stretch). Cambio a fotoperíodo 12/12 si es indoor. Fósforo/Potasio inicial.' },
+      { w: 'Sem 10-12', days: 'Días 64-84', title: '🌸 Floración Plena & Engorde', desc: 'Formación de cálices y resina. Control de orugas con Bacillus thuringiensis.' },
+      { w: 'Sem 13-14', days: 'Días 85-98', title: '💎 Maduración de Tricomas', desc: 'Melazas, azúcares y potasio. Seguimiento de tricomas con lupa 60x.' },
+      { w: 'Final', days: 'Últimos 10 días', title: '🚿 Lavado de Raíces (Flush)', desc: 'Agua sola sin nutrientes para eliminar sales. Hojas comienzan a amarillear naturalmente.' },
+      { w: 'Corte', days: 'Día estimado', title: '🌑 Cosecha & Secado', desc: 'Corte en Luna Menguante o Luna Nueva. Secado a 18-20°C y 55-60% HR en oscuridad total.' }
+    ];
+
+    container.innerHTML = weeksPlan.map((step, idx) => {
+      const isPast = (idx + 1) * 2 < currentWeek;
+      const isCurrent = Math.abs((idx + 1) * 2 - currentWeek) <= 1;
+
+      return `
+        <div class="rounded-xl border p-2.5 transition ${
+          isCurrent
+            ? 'bg-neutral-900 border-white/40 text-white shadow-sm'
+            : isPast
+            ? 'bg-neutral-950/60 border-white/[0.04] text-neutral-400'
+            : 'bg-neutral-950 border-white/[0.06] text-neutral-300'
+        }">
+          <div class="flex items-center justify-between text-[11px] mb-1">
+            <span class="font-bold flex items-center gap-1.5">
+              <span>${isPast ? '✓' : isCurrent ? '📍' : '○'}</span>
+              <span>${step.title}</span>
+            </span>
+            <span class="font-mono text-[10px] text-neutral-400">${step.w} · ${step.days}</span>
+          </div>
+          <p class="text-[11px] text-neutral-400 pl-4 leading-relaxed">${step.desc}</p>
+        </div>
+      `;
+    }).join('');
+  }
+};
+
+/* ==========================================================================
+   5. MÓDULO GROWLOGS (BITÁCORA TIPO APPLE NOTES / JOURNAL)
    ========================================================================== */
 const GrowlogsModule = {
   plants: [],
@@ -338,7 +1114,7 @@ const GrowlogsModule = {
     await Storage.seedIfEmpty();
     await this.loadPlants();
 
-    $('btn-top-new-plant').addEventListener('click', () => this.openPlantModal());
+    $('btn-top-new-plant')?.addEventListener('click', () => this.openPlantModal());
     $('btn-empty-add-plant')?.addEventListener('click', () => this.openPlantModal());
     $('btn-load-demo-plant')?.addEventListener('click', async () => {
       await Storage.seedIfEmpty();
@@ -346,13 +1122,13 @@ const GrowlogsModule = {
       showToast('🌱 Planta de ejemplo cargada');
     });
 
-    $('btn-back-to-plants').addEventListener('click', () => this.showDashboard());
-    $('btn-edit-plant-info').addEventListener('click', () => {
+    $('btn-back-to-plants')?.addEventListener('click', () => this.showDashboard());
+    $('btn-edit-plant-info')?.addEventListener('click', () => {
       const plant = this.plants.find((p) => p.id === this.activePlantId);
       if (plant) this.openPlantModal(plant);
     });
 
-    $('btn-delete-plant').addEventListener('click', async () => {
+    $('btn-delete-plant')?.addEventListener('click', async () => {
       if (!confirm('¿Eliminar esta planta y todas sus notas de la bitácora?')) return;
       await Storage.deletePlant(this.activePlantId);
       this.activePlantId = null;
@@ -362,7 +1138,7 @@ const GrowlogsModule = {
     });
 
     // Segmented filters de plantas
-    $('plants-stage-filters').addEventListener('click', (e) => {
+    $('plants-stage-filters')?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-plant-filter]');
       if (!btn) return;
       this.activeFilter = btn.dataset.plantFilter;
@@ -373,7 +1149,7 @@ const GrowlogsModule = {
     });
 
     // Filtros de Timeline
-    $('timeline-filters').addEventListener('click', (e) => {
+    $('timeline-filters')?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-timeline-filter]');
       if (!btn) return;
       this.activeTimelineFilter = btn.dataset.timelineFilter;
@@ -388,20 +1164,20 @@ const GrowlogsModule = {
     document.querySelectorAll('[data-quick-log]').forEach((b) => {
       b.addEventListener('click', () => this.openLogModal(b.dataset.quickLog));
     });
-    $('btn-open-full-log').addEventListener('click', () => this.openLogModal('riego_agua'));
+    $('btn-open-full-log')?.addEventListener('click', () => this.openLogModal('riego_agua'));
 
     // Modal de Registro
-    $('btn-close-log-modal').addEventListener('click', () => this.closeLogModal());
-    $('form-log-entry').addEventListener('submit', (e) => this.handleLogSubmit(e));
+    $('btn-close-log-modal')?.addEventListener('click', () => this.closeLogModal());
+    $('form-log-entry')?.addEventListener('submit', (e) => this.handleLogSubmit(e));
 
-    $('log-type-selector').addEventListener('click', (e) => {
+    $('log-type-selector')?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-type]');
       if (!btn) return;
       this.setLogModalType(btn.dataset.type);
     });
 
     // Subida de Foto en Log
-    $('input-log-photo').addEventListener('change', async (e) => {
+    $('input-log-photo')?.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       try {
@@ -412,17 +1188,17 @@ const GrowlogsModule = {
         showToast('No se pudo procesar la foto');
       }
     });
-    $('btn-remove-log-photo').addEventListener('click', () => {
+    $('btn-remove-log-photo')?.addEventListener('click', () => {
       this.pendingPhotoData = null;
       $('input-log-photo').value = '';
       $('log-photo-preview-box').classList.add('hidden');
     });
 
     // Modal de Planta
-    $('btn-close-plant-modal').addEventListener('click', () => this.closePlantModal());
-    $('form-plant').addEventListener('submit', (e) => this.handlePlantSubmit(e));
+    $('btn-close-plant-modal')?.addEventListener('click', () => this.closePlantModal());
+    $('form-plant')?.addEventListener('submit', (e) => this.handlePlantSubmit(e));
 
-    $('input-plant-cover-photo').addEventListener('change', async (e) => {
+    $('input-plant-cover-photo')?.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       try {
@@ -434,7 +1210,7 @@ const GrowlogsModule = {
         showToast('Error con la foto de portada');
       }
     });
-    $('btn-remove-plant-cover').addEventListener('click', () => {
+    $('btn-remove-plant-cover')?.addEventListener('click', () => {
       delete $('input-plant-cover-photo').dataset.base64;
       $('input-plant-cover-photo').value = '';
       $('plant-cover-preview-box').classList.add('hidden');
@@ -445,7 +1221,7 @@ const GrowlogsModule = {
       const pot = parseFloat($('input-plant-pot')?.value) || 15;
       const minR = (pot * 0.1).toFixed(1);
       const maxR = (pot * 0.15).toFixed(1);
-      if ($('plant-pot-hint')) $('plant-pot-hint').textContent = `Riego: ~${minR} - ${maxR} L`;
+      if ($('plant-pot-hint')) $('plant-pot-hint').textContent = `Riego sugerido: ~${minR} - ${maxR} L`;
     };
     $('input-plant-pot')?.addEventListener('input', updatePlantPotHint);
     $('plant-pot-presets')?.addEventListener('click', (e) => {
@@ -456,8 +1232,8 @@ const GrowlogsModule = {
     });
 
     // Lightbox
-    $('btn-close-lightbox').addEventListener('click', () => $('lightbox-modal').classList.add('hidden'));
-    $('lightbox-modal').addEventListener('click', (e) => {
+    $('btn-close-lightbox')?.addEventListener('click', () => $('lightbox-modal').classList.add('hidden'));
+    $('lightbox-modal')?.addEventListener('click', (e) => {
       if (e.target.id === 'lightbox-modal') $('lightbox-modal').classList.add('hidden');
     });
   },
@@ -466,17 +1242,19 @@ const GrowlogsModule = {
     this.plants = await Storage.getPlants();
     this.updateStats();
     await this.renderPlantsGrid();
+    await RemindersModule.renderReminders();
   },
 
   updateStats() {
-    $('stat-total-plants').textContent = this.plants.length;
-    $('stat-veg-plants').textContent = this.plants.filter((p) => p.stage === 'vegetativo' || p.stage === 'plantula').length;
-    $('stat-flower-plants').textContent = this.plants.filter((p) => p.stage === 'floracion' || p.stage === 'transicion').length;
+    if ($('stat-total-plants')) $('stat-total-plants').textContent = this.plants.length;
+    if ($('stat-veg-plants')) $('stat-veg-plants').textContent = this.plants.filter((p) => p.stage === 'vegetativo' || p.stage === 'plantula').length;
+    if ($('stat-flower-plants')) $('stat-flower-plants').textContent = this.plants.filter((p) => p.stage === 'floracion' || p.stage === 'transicion').length;
   },
 
   async renderPlantsGrid() {
     const grid = $('plants-grid');
     const empty = $('plants-empty-state');
+    if (!grid) return;
 
     let filtered = this.plants;
     if (this.activeFilter !== 'all') {
@@ -485,10 +1263,10 @@ const GrowlogsModule = {
 
     if (this.plants.length === 0) {
       grid.innerHTML = '';
-      empty.classList.remove('hidden');
+      empty?.classList.remove('hidden');
       return;
     }
-    empty.classList.add('hidden');
+    empty?.classList.add('hidden');
 
     if (filtered.length === 0) {
       grid.innerHTML = `<div class="col-span-full ios-card p-6 text-center text-xs text-neutral-400">No hay plantas en etapa ${this.activeFilter}.</div>`;
@@ -502,6 +1280,7 @@ const GrowlogsModule = {
       const pot = p.potLiters || 15;
       const minWater = (pot * 0.1).toFixed(1);
       const maxWater = (pot * 0.15).toFixed(1);
+      const health = HEALTH_STATES[p.healthStatus] || HEALTH_STATES.optima;
       const logs = await Storage.getLogsByPlant(p.id);
       const lastLog = logs[0];
 
@@ -516,14 +1295,17 @@ const GrowlogsModule = {
                   : `<span class="text-2xl">${st.emoji}</span>`}
               </div>
               <div class="min-w-0 flex-1">
-                <h3 class="text-base font-bold text-white tracking-tight leading-tight truncate">${esc(p.name)}</h3>
+                <div class="flex items-center justify-between gap-1">
+                  <h3 class="text-base font-bold text-white tracking-tight leading-tight truncate">${esc(p.name)}</h3>
+                  <span class="${health.badgeClass} text-[9px] !py-0.5 !px-1.5 shrink-0">${health.emoji} ${health.label.split(' ')[0]}</span>
+                </div>
                 <p class="text-xs text-neutral-400 truncate mt-0.5">${esc(p.strain || 'Genética personalizada')}</p>
                 <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
                   <span class="badge-mono font-mono text-[10px]">Día ${days}</span>
                   <span class="badge-mono text-[10px] text-neutral-300">Sem ${weeks}</span>
                   <span class="${st.badgeClass} text-[10px]">${st.label}</span>
                   <span class="badge-mono text-[10px] text-neutral-300">🪴 ${pot} L</span>
-                  <span class="badge-mono text-[10px] text-white">💧 ~${minWater}–${maxWater} L</span>
+                  <span class="badge-mono text-[10px] text-white font-mono">💧 ~${minWater}–${maxWater} L</span>
                 </div>
               </div>
             </div>
@@ -557,8 +1339,8 @@ const GrowlogsModule = {
     const plant = this.plants.find((p) => p.id === plantId);
     if (!plant) return;
 
-    $('growlogs-dashboard-container').classList.add('hidden');
-    $('growlogs-detail-container').classList.remove('hidden');
+    $('growlogs-dashboard-container')?.classList.add('hidden');
+    $('growlogs-detail-container')?.classList.remove('hidden');
     $('top-bar-subtext').textContent = `${plant.name} · Bitácora`;
 
     this.renderPlantHero(plant);
@@ -568,8 +1350,8 @@ const GrowlogsModule = {
 
   showDashboard() {
     this.activePlantId = null;
-    $('growlogs-detail-container').classList.add('hidden');
-    $('growlogs-dashboard-container').classList.remove('hidden');
+    $('growlogs-detail-container')?.classList.add('hidden');
+    $('growlogs-dashboard-container')?.classList.remove('hidden');
     $('top-bar-subtext').textContent = 'Bitácora de Plantas';
     this.renderPlantsGrid();
   },
@@ -581,51 +1363,74 @@ const GrowlogsModule = {
     const pot = plant.potLiters || 15;
     const minWater = (pot * 0.1).toFixed(1);
     const maxWater = (pot * 0.15).toFixed(1);
+    const health = HEALTH_STATES[plant.healthStatus] || HEALTH_STATES.optima;
+    const cycleDays = plant.cycleDays || (plant.type === 'automatica' ? 80 : 140);
+    const progressPct = Math.min(100, Math.round((days / cycleDays) * 100));
 
     $('plant-hero-card').innerHTML = `
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div class="flex items-center gap-4">
-          <div class="h-16 w-16 shrink-0 rounded-2xl bg-neutral-900 border border-white/10 overflow-hidden flex items-center justify-center">
-            ${plant.coverPhoto
-              ? `<img src="${plant.coverPhoto}" alt="${esc(plant.name)}" class="h-full w-full object-cover cursor-pointer" onclick="GrowlogsModule.openLightbox('${plant.coverPhoto}', '${esc(plant.name)}')">`
-              : `<span class="text-3xl">${st.emoji}</span>`}
+      <div class="space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <div class="h-16 w-16 shrink-0 rounded-2xl bg-neutral-900 border border-white/10 overflow-hidden flex items-center justify-center">
+              ${plant.coverPhoto
+                ? `<img src="${plant.coverPhoto}" alt="${esc(plant.name)}" class="h-full w-full object-cover cursor-pointer" onclick="GrowlogsModule.openLightbox('${plant.coverPhoto}', '${esc(plant.name)}')">`
+                : `<span class="text-3xl">${st.emoji}</span>`}
+            </div>
+
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h2 class="text-xl font-extrabold text-white tracking-tight">${esc(plant.name)}</h2>
+                <span class="${st.badgeClass} text-[10px]">${st.label}</span>
+                <span class="${health.badgeClass} text-[10px]">${health.emoji} ${health.label}</span>
+              </div>
+              <p class="text-xs text-neutral-400 mt-0.5">${esc(plant.strain || 'Variedad de jardín')} · <span class="capitalize">${plant.type}</span></p>
+              <div class="flex items-center gap-2 mt-2 font-mono text-xs flex-wrap">
+                <span class="text-white font-bold">Día ${days}</span>
+                <span class="text-neutral-600">·</span>
+                <span class="text-neutral-300">Semana ${weeks}</span>
+                <span class="text-neutral-600">·</span>
+                <span class="text-neutral-400 font-sans">${plant.medium}</span>
+                <span class="text-neutral-600">·</span>
+                <span class="text-white">🪴 Maceta ${pot} L</span>
+                <span class="text-neutral-600">·</span>
+                <span class="text-neutral-300 font-sans">💧 Riego prom.: ~${minWater}–${maxWater} L</span>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <div class="flex items-center gap-2">
-              <h2 class="text-xl font-extrabold text-white tracking-tight">${esc(plant.name)}</h2>
-              <span class="${st.badgeClass} text-[10px]">${st.label}</span>
-            </div>
-            <p class="text-xs text-neutral-400 mt-0.5">${esc(plant.strain || 'Variedad de jardín')} · <span class="capitalize">${plant.type}</span></p>
-            <div class="flex items-center gap-2 mt-2 font-mono text-xs flex-wrap">
-              <span class="text-white font-bold">Día ${days}</span>
-              <span class="text-neutral-600">·</span>
-              <span class="text-neutral-300">Semana ${weeks}</span>
-              <span class="text-neutral-600">·</span>
-              <span class="text-neutral-400 font-sans">${plant.medium}</span>
-              <span class="text-neutral-600">·</span>
-              <span class="text-white">🪴 Maceta ${pot} L</span>
-              <span class="text-neutral-600">·</span>
-              <span class="text-neutral-300 font-sans">💧 Riego prom.: ~${minWater}–${maxWater} L</span>
+          <!-- Acciones Rápidas de Salud y Etapa -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.1rem]"
+              onclick="App.navigate('plagas')">
+              <span>🩺 Diagnosticar</span>
+            </button>
+            <div class="flex items-center gap-2 bg-neutral-950 px-3 py-1.5 rounded-xl border border-white/[0.08]">
+              <span class="text-[11px] font-semibold text-neutral-400 uppercase">Etapa:</span>
+              <select id="quick-change-stage" class="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer">
+                <option value="plantula" ${plant.stage === 'plantula' ? 'selected' : ''}>🌱 Plántula</option>
+                <option value="vegetativo" ${plant.stage === 'vegetativo' ? 'selected' : ''}>🌿 Vegetativo</option>
+                <option value="transicion" ${plant.stage === 'transicion' ? 'selected' : ''}>⚡ Transición</option>
+                <option value="floracion" ${plant.stage === 'floracion' ? 'selected' : ''}>🌸 Floración</option>
+                <option value="cosecha" ${plant.stage === 'cosecha' ? 'selected' : ''}>💎 Cosecha</option>
+              </select>
             </div>
           </div>
         </div>
 
-        <!-- Selector de Etapa Estilo iOS -->
-        <div class="flex items-center gap-2 bg-neutral-950 px-3 py-1.5 rounded-xl border border-white/[0.08]">
-          <span class="text-[11px] font-semibold text-neutral-400 uppercase">Etapa:</span>
-          <select id="quick-change-stage" class="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer">
-            <option value="plantula" ${plant.stage === 'plantula' ? 'selected' : ''}>🌱 Plántula</option>
-            <option value="vegetativo" ${plant.stage === 'vegetativo' ? 'selected' : ''}>🌿 Vegetativo</option>
-            <option value="transicion" ${plant.stage === 'transicion' ? 'selected' : ''}>⚡ Transición</option>
-            <option value="floracion" ${plant.stage === 'floracion' ? 'selected' : ''}>🌸 Floración</option>
-            <option value="cosecha" ${plant.stage === 'cosecha' ? 'selected' : ''}>💎 Cosecha</option>
-          </select>
+        <!-- Barra de Progreso del Ciclo hasta Cosecha -->
+        <div class="rounded-xl bg-neutral-950 p-3 border border-white/[0.06] space-y-1.5">
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="text-neutral-400 font-medium">Ciclo de vida: Día ${days} de ~${cycleDays} (${progressPct}%)</span>
+            <span class="font-mono text-white font-bold">${Math.max(0, cycleDays - days)} días para cosecha</span>
+          </div>
+          <div class="w-full bg-neutral-900 rounded-full h-2 overflow-hidden border border-white/[0.06]">
+            <div class="bg-white h-full rounded-full transition-all duration-300" style="width: ${progressPct}%"></div>
+          </div>
         </div>
       </div>
     `;
 
-    $('quick-change-stage').addEventListener('change', async (e) => {
+    $('quick-change-stage')?.addEventListener('change', async (e) => {
       const newStage = e.target.value;
       if (newStage === plant.stage) return;
       plant.stage = newStage;
@@ -642,6 +1447,7 @@ const GrowlogsModule = {
 
       this.renderPlantHero(plant);
       await this.renderTimeline();
+      await RemindersModule.renderReminders();
       showToast(`Etapa: ${STAGES[newStage].label}`);
     });
   },
@@ -668,16 +1474,15 @@ const GrowlogsModule = {
 
     if (logs.length === 0) {
       container.innerHTML = '';
-      empty.classList.remove('hidden');
+      empty?.classList.remove('hidden');
       return;
     }
-    empty.classList.add('hidden');
+    empty?.classList.add('hidden');
 
     container.innerHTML = logs.map((log) => {
       const t = LOG_TYPES[log.type] || LOG_TYPES.nota_foto;
       const dayAtLog = plant ? daysDiff(plant.germDate, log.dateTime.split('T')[0]) : null;
 
-      // Métricas limpias en blanco y negro
       let metricsBadges = '';
       if (log.metrics) {
         const m = log.metrics;
@@ -688,6 +1493,10 @@ const GrowlogsModule = {
         if (m.foliarType) metricsBadges += `<span class="badge-mono text-[10px]">${esc(m.foliarType)}</span>`;
         if (m.pruneType) metricsBadges += `<span class="badge-mono text-[10px]">${esc(m.pruneType)}</span>`;
         if (m.potSize) metricsBadges += `<span class="badge-mono text-[10px]">Maceta ${esc(m.potSize)}</span>`;
+        if (m.healthUpdate) {
+          const hState = HEALTH_STATES[m.healthUpdate];
+          if (hState) metricsBadges += `<span class="${hState.badgeClass} text-[10px]">${hState.emoji} ${hState.label}</span>`;
+        }
       }
 
       return `
@@ -729,10 +1538,14 @@ const GrowlogsModule = {
     if (!confirm('¿Eliminar esta entrada de la bitácora?')) return;
     await Storage.deleteLog(logId);
     await this.renderTimeline();
+    await RemindersModule.renderReminders();
     showToast('Entrada eliminada');
   },
 
   openLogModal(initialType = 'riego_agua') {
+    if (!this.activePlantId && this.plants.length > 0) {
+      this.activePlantId = this.plants[0].id;
+    }
     if (!this.activePlantId) {
       showToast('Seleccioná una planta primero');
       return;
@@ -744,6 +1557,7 @@ const GrowlogsModule = {
     $('input-log-photo').value = '';
     $('log-photo-preview-box').classList.add('hidden');
     $('input-log-notes').value = '';
+    if ($('input-log-health-update')) $('input-log-health-update').value = 'keep';
 
     this.setLogModalType(initialType);
     $('modal-log-entry').classList.remove('hidden');
@@ -782,7 +1596,7 @@ const GrowlogsModule = {
           </div>
           <div>
             <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">pH</label>
-            <input id="log-ph" type="number" step="0.1" placeholder="6.2" class="ios-input w-full font-mono text-xs" />
+            <input id="log-ph" type="number" step="0.1" placeholder="6.3" class="ios-input w-full font-mono text-xs" />
           </div>
           <div>
             <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">EC</label>
@@ -800,7 +1614,7 @@ const GrowlogsModule = {
           </div>
           <div>
             <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">pH</label>
-            <input id="log-ph" type="number" step="0.1" placeholder="6.2" class="ios-input w-full font-mono text-xs" />
+            <input id="log-ph" type="number" step="0.1" placeholder="6.4" class="ios-input w-full font-mono text-xs" />
           </div>
           <div>
             <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">EC</label>
@@ -810,7 +1624,7 @@ const GrowlogsModule = {
         <p class="text-[10px] text-neutral-400 mt-1">💡 Riego promedio para tu maceta de ${pot} L: <strong>~${minWater} a ${maxWater} L</strong> (10% a 15% del sustrato).</p>
         <div>
           <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Productos de la Mezcla</label>
-          <input id="log-products" type="text" placeholder="Ej: Top Bloom 3ml/L + Top Candy 2ml/L" class="ios-input w-full text-xs" />
+          <input id="log-products" type="text" placeholder="Ej: Fertilizante base + Melaza / Bioestimulante" class="ios-input w-full text-xs" />
         </div>
       `;
     } else if (type === 'foliar') {
@@ -870,6 +1684,7 @@ const GrowlogsModule = {
     const type = $('input-log-type').value;
     const dateTime = $('input-log-datetime').value;
     const notes = $('input-log-notes').value.trim();
+    const healthUpdate = $('input-log-health-update')?.value;
 
     const metrics = {};
     if ($('log-liters')) metrics.liters = parseFloat($('log-liters').value) || undefined;
@@ -879,6 +1694,15 @@ const GrowlogsModule = {
     if ($('log-foliar-type')) metrics.foliarType = $('log-foliar-type').value;
     if ($('log-prune-type')) metrics.pruneType = $('log-prune-type').value;
     if ($('log-pot-size')) metrics.potSize = $('log-pot-size').value.trim() || undefined;
+
+    if (healthUpdate && healthUpdate !== 'keep') {
+      metrics.healthUpdate = healthUpdate;
+      const plant = this.plants.find((p) => p.id === this.activePlantId);
+      if (plant) {
+        plant.healthStatus = healthUpdate;
+        await Storage.savePlant(plant);
+      }
+    }
 
     const newLog = {
       id: 'log-' + Date.now(),
@@ -892,6 +1716,7 @@ const GrowlogsModule = {
 
     await Storage.saveLog(newLog);
     this.closeLogModal();
+    await this.loadPlants();
     await this.renderTimeline();
     showToast('Entrada guardada en la bitácora');
   },
@@ -905,9 +1730,12 @@ const GrowlogsModule = {
     $('select-plant-medium').value = editPlant ? editPlant.medium : 'sustrato';
     $('input-plant-germ-date').value = editPlant ? editPlant.germDate : todayDateStr();
     $('select-plant-stage').value = editPlant ? editPlant.stage : 'vegetativo';
+    if ($('select-plant-health')) $('select-plant-health').value = editPlant ? (editPlant.healthStatus || 'optima') : 'optima';
+    if ($('input-plant-cycle-days')) $('input-plant-cycle-days').value = editPlant ? (editPlant.cycleDays || 140) : 140;
+
     const pot = editPlant?.potLiters || 15;
     $('input-plant-pot').value = pot;
-    if ($('plant-pot-hint')) $('plant-pot-hint').textContent = `Riego: ~${(pot * 0.1).toFixed(1)} - ${(pot * 0.15).toFixed(1)} L`;
+    if ($('plant-pot-hint')) $('plant-pot-hint').textContent = `Riego sugerido: ~${(pot * 0.1).toFixed(1)} - ${(pot * 0.15).toFixed(1)} L`;
 
     if (editPlant && editPlant.coverPhoto) {
       $('plant-cover-preview-img').src = editPlant.coverPhoto;
@@ -937,6 +1765,8 @@ const GrowlogsModule = {
     const potLiters = parseFloat($('input-plant-pot').value) || 15;
     const germDate = $('input-plant-germ-date').value;
     const stage = $('select-plant-stage').value;
+    const healthStatus = $('select-plant-health')?.value || 'optima';
+    const cycleDays = parseInt($('input-plant-cycle-days')?.value) || (type === 'automatica' ? 80 : 140);
     const coverPhoto = $('input-plant-cover-photo').dataset.base64 || undefined;
 
     const plant = {
@@ -946,6 +1776,8 @@ const GrowlogsModule = {
       type,
       medium,
       potLiters,
+      cycleDays,
+      healthStatus,
       germDate,
       stage,
       coverPhoto,
@@ -971,7 +1803,7 @@ const GrowlogsModule = {
 };
 
 /* ==========================================================================
-   5. MÓDULO RIEGO & NUTRIENTES (CALCULADORA MINIMALISTA)
+   6. MÓDULO RIEGO & NUTRIENTES (CALCULADORA MINIMALISTA)
    ========================================================================== */
 const BRANDS = {
   topcrop: {
@@ -1054,7 +1886,7 @@ const CalculatorModule = {
       });
     });
 
-    // Cálculo interactivo de riego promedio según tamaño de maceta (10% - 15%)
+    // Cálculo interactivo de riego promedio según maceta (10% - 15%)
     const updatePotIrrigationCalc = () => {
       const pot = parseFloat($('calc-pot-size')?.value) || 15;
       const qty = parseInt($('calc-plants-qty')?.value) || 1;
@@ -1161,7 +1993,7 @@ const CalculatorModule = {
       cont.innerHTML = `
         <div class="ios-card p-3.5 text-xs space-y-1 text-neutral-300">
           <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">Modo Indoor (Semanas)</span>
-          <p>Fotoperíodo <strong>18/6</strong> para crecimiento y <strong>12/12</strong> para inducir la floración.</p>
+          <p>Fotoperíodo <strong>18/6</strong> para crecimiento vegetativo y <strong>12/12</strong> para inducir y sostener la floración.</p>
         </div>
       `;
     }
@@ -1205,13 +2037,13 @@ const CalculatorModule = {
     }
 
     $('mixing-protocol-box').innerHTML = `
-      Mezclá bien cada producto en el agua antes de incorporar el siguiente. Medí y ajustá el pH al final.
+      Mezclá bien cada producto en el agua antes de incorporar el siguiente. Medí y ajustá el pH al final (6.0 a 6.5 en veg / 6.3 a 6.8 en flora).
     `;
   }
 };
 
 /* ==========================================================================
-   6. MÓDULO CALENDARIO LUNAR (POÉTICO & MINIMALISTA)
+   7. MÓDULO CALENDARIO LUNAR (POÉTICO & MINIMALISTA)
    ========================================================================== */
 const LunarModule = {
   year: 2026,
@@ -1250,7 +2082,6 @@ const LunarModule = {
   },
 
   render() {
-    // Luna monocromática y limpia orientada al hemisferio sur
     $('lunar-hero-svg').innerHTML = `
       <svg viewBox="0 0 100 100" class="h-16 w-16">
         <circle cx="50" cy="50" r="44" fill="#141416" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
@@ -1264,7 +2095,7 @@ const LunarModule = {
     $('lunar-day-recommendation').innerHTML = `
       <span class="badge-mono text-[10px]">Labores recomendadas</span>
       <p class="text-white font-semibold text-xs mt-1">Podas, Trasplantes y Esquejes</p>
-      <p class="text-neutral-400 text-[11px] mt-0.5">La savia desciende: menor estrés por herida y cicatrización óptima.</p>
+      <p class="text-neutral-400 text-[11px] mt-0.5">La savia desciende: menor estrés por herida y cicatrización celular rápida.</p>
     `;
 
     $('lunar-task-cards').innerHTML = `
@@ -1305,67 +2136,225 @@ const LunarModule = {
 };
 
 /* ==========================================================================
-   7. MÓDULO CUIDADOS & PREVENCIÓN (MIP)
+   8. MÓDULO SALUD, DIAGNÓSTICO & PREVENCIÓN (MIP + TRICOMAS)
    ========================================================================== */
-const PestModule = {
+const DiagnosticModule = {
+  activeSubview: 'diagnostico',
+  activeCategory: 'all',
+
   init() {
-    $('input-pest-last-date').value = todayDateStr();
-    $('input-pest-last-date').addEventListener('change', () => this.render());
-    $('select-pest-interval').addEventListener('change', () => this.render());
-    $('select-sprayer-liters').addEventListener('change', () => this.render());
-    this.render();
+    // Segmented switcher de Salud
+    $('health-subview-segmented')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-health-subview]');
+      if (!btn) return;
+      this.activeSubview = btn.dataset.healthSubview;
+      document.querySelectorAll('#health-subview-segmented button').forEach((b) => b.classList.toggle('active', b === btn));
+      this.switchSubview(this.activeSubview);
+    });
+
+    // Filtros de categoría de diagnóstico
+    $('diagnostic-category-filters')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-diag-cat]');
+      if (!btn) return;
+      this.activeCategory = btn.dataset.diagCat;
+      document.querySelectorAll('#diagnostic-category-filters button').forEach((b) => {
+        b.className = b === btn ? 'badge-mono badge-mono-inverted cursor-pointer' : 'badge-mono cursor-pointer';
+      });
+      this.renderDiagnosticCards();
+    });
+
+    // MIP inputs
+    $('input-pest-last-date')?.addEventListener('change', () => this.renderMip());
+    $('select-pest-interval')?.addEventListener('change', () => this.renderMip());
+    $('select-sprayer-liters')?.addEventListener('change', () => this.renderMip());
+
+    if ($('input-pest-last-date')) $('input-pest-last-date').value = todayDateStr();
+
+    this.renderDiagnosticCards();
+    this.renderMip();
+    this.renderTrichomes();
   },
 
-  render() {
-    const liters = parseFloat($('select-sprayer-liters').value) || 1;
-    const interval = parseInt($('select-pest-interval').value) || 12;
+  switchSubview(view) {
+    $('subview-health-diagnostico')?.classList.toggle('hidden', view !== 'diagnostico');
+    $('subview-health-mip')?.classList.toggle('hidden', view !== 'mip');
+    $('subview-health-tricomas')?.classList.toggle('hidden', view !== 'tricomas');
+  },
 
-    $('pest-alert-card').innerHTML = `
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <span class="badge-mono text-[10px]">Prevención Activa</span>
-          <h3 class="text-base font-bold text-white mt-1">Próxima aplicación sugerida en 5 días</h3>
-          <p class="text-xs text-neutral-400">Rutina cada ${interval} días al atardecer.</p>
-        </div>
-        <span class="text-2xl">🛡️</span>
-      </div>
-    `;
+  renderDiagnosticCards() {
+    const grid = $('diagnostic-cards-grid');
+    if (!grid) return;
 
-    $('pest-biocontrol-cards').innerHTML = `
-      <div class="ios-card p-4 space-y-2 text-xs">
-        <div class="flex items-center justify-between">
-          <strong class="text-white text-sm">🌿 Aceite de Neem + Jabón Potásico</strong>
-          <span class="badge-mono text-[10px]">Vegetativo</span>
-        </div>
-        <p class="text-neutral-400">Dosis para tu pulverizador de <strong>${liters} L</strong>:</p>
-        <div class="flex gap-2 font-mono">
-          <span class="badge-mono text-white">${(2 * liters).toFixed(1)} ml Neem</span>
-          <span class="badge-mono text-white">${(5 * liters).toFixed(1)} ml Potásico</span>
-        </div>
-        <p class="text-neutral-400 text-[11px] mt-1">Previene trips, arañuela y mosca blanca. Aplicar en el envés de las hojas.</p>
-      </div>
+    let items = DIAGNOSTIC_GUIDE;
+    if (this.activeCategory !== 'all') {
+      items = items.filter((d) => d.category === this.activeCategory);
+    }
 
-      <div class="ios-card p-4 space-y-2 text-xs">
-        <div class="flex items-center justify-between">
-          <strong class="text-white text-sm">🐛 Bacillus thuringiensis (Bt)</strong>
-          <span class="badge-mono text-[10px]">Floración Outdoor</span>
+    grid.innerHTML = items.map((diag) => {
+      return `
+        <div class="diagnostic-card flex flex-col justify-between">
+          <div class="space-y-3">
+            <!-- Ilustración Vectorial Superior -->
+            <div class="diagnostic-svg-wrap p-2 flex items-center justify-center">
+              ${diag.svg}
+            </div>
+
+            <!-- Cabecera de la Ficha -->
+            <div class="px-4 pt-1 space-y-1">
+              <div class="flex items-center justify-between gap-2">
+                <span class="${diag.badgeClass} text-[10px] !py-0.5 !px-2">${diag.severity}</span>
+                <span class="text-[10px] font-mono text-neutral-400 capitalize">${diag.category}</span>
+              </div>
+              <h3 class="text-base font-bold text-white tracking-tight">${esc(diag.title)}</h3>
+              <p class="text-[11px] text-neutral-400 flex items-center gap-1">
+                <span>📍</span>
+                <span>${esc(diag.location)}</span>
+              </p>
+            </div>
+
+            <!-- Síntomas & Diagnóstico Agronómico -->
+            <div class="px-4 text-xs space-y-2 text-neutral-300">
+              <p class="leading-relaxed text-[11px] text-neutral-300">${esc(diag.symptoms)}</p>
+              <div class="rounded-xl bg-neutral-950 p-2.5 border border-white/[0.04] space-y-1 text-[11px]">
+                <strong class="text-white block text-[10px] uppercase tracking-wider">Causa Principal:</strong>
+                <p class="text-neutral-400 leading-snug">${esc(diag.causes)}</p>
+              </div>
+              <div class="rounded-xl bg-neutral-900 border border-white/[0.08] p-2.5 space-y-1 text-[11px]">
+                <strong class="text-white block text-[10px] uppercase tracking-wider">Protocolo de Corrección:</strong>
+                <p class="text-neutral-300 whitespace-pre-line leading-relaxed">${esc(diag.solution)}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botón de Asignación a Planta Activa -->
+          <div class="p-4 pt-3 border-t border-white/[0.06] mt-3">
+            <button type="button" class="ios-btn ios-btn-secondary w-full text-xs !py-2"
+              onclick="DiagnosticModule.assignToActivePlant('${diag.id}')">
+              <span>Asignar diagnóstico a mi planta</span>
+            </button>
+          </div>
         </div>
-        <p class="text-neutral-400">Dosis para tu pulverizador de <strong>${liters} L</strong>:</p>
-        <div class="font-mono">
-          <span class="badge-mono text-white">${(1 * liters).toFixed(1)} g Bt en polvo</span>
+      `;
+    }).join('');
+  },
+
+  async assignToActivePlant(diagId) {
+    if (!GrowlogsModule.plants.length) {
+      showToast('No tenés plantas creadas');
+      return;
+    }
+    const plant = GrowlogsModule.activePlantId
+      ? GrowlogsModule.plants.find((p) => p.id === GrowlogsModule.activePlantId)
+      : GrowlogsModule.plants[0];
+
+    if (!plant) return;
+    const diag = DIAGNOSTIC_GUIDE.find((d) => d.id === diagId);
+    if (!diag) return;
+
+    plant.healthStatus = diagId;
+    await Storage.savePlant(plant);
+
+    // Registra automáticamente en la bitácora
+    await Storage.saveLog({
+      id: 'log-' + Date.now(),
+      plantId: plant.id,
+      type: 'nota_foto',
+      dateTime: new Date().toISOString(),
+      notes: `🩺 Diagnóstico visual aplicado: ${diag.title}.\nUbicación: ${diag.location}.\nProtocolo: ${diag.solution.split('\n')[0]}`,
+      metrics: {
+        healthUpdate: diagId
+      }
+    });
+
+    await GrowlogsModule.loadPlants();
+    if (GrowlogsModule.activePlantId === plant.id) {
+      GrowlogsModule.renderPlantHero(plant);
+      await GrowlogsModule.renderTimeline();
+    }
+    showToast(`✓ Salud de ${plant.name}: ${diag.title}`);
+  },
+
+  renderMip() {
+    const liters = parseFloat($('select-sprayer-liters')?.value) || 1;
+    const interval = parseInt($('select-pest-interval')?.value) || 12;
+
+    if ($('pest-alert-card')) {
+      $('pest-alert-card').innerHTML = `
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <span class="badge-mono text-[10px]">Prevención Activa MIP</span>
+            <h3 class="text-base font-bold text-white mt-1">Rutina biológica cada ${interval} días</h3>
+            <p class="text-xs text-neutral-400">Pulverizar con pulverizador de ${liters} L al caer el sol o al apagar las luces.</p>
+          </div>
+          <span class="text-2xl">🛡️</span>
         </div>
-        <p class="text-neutral-400 text-[11px] mt-1">Control biológico de orugas e isocas que dañan los cogollos desde adentro.</p>
-      </div>
-    `;
+      `;
+    }
+
+    if ($('pest-biocontrol-cards')) {
+      $('pest-biocontrol-cards').innerHTML = `
+        <div class="ios-card p-4 space-y-2 text-xs">
+          <div class="flex items-center justify-between">
+            <strong class="text-white text-sm">🌿 Aceite de Neem + Jabón Potásico</strong>
+            <span class="badge-mono text-[10px]">Vegetativo</span>
+          </div>
+          <p class="text-neutral-400">Dosis para tu pulverizador de <strong>${liters} L</strong>:</p>
+          <div class="flex gap-2 font-mono">
+            <span class="badge-mono text-white">${(2 * liters).toFixed(1)} ml Neem</span>
+            <span class="badge-mono text-white">${(5 * liters).toFixed(1)} ml Jabón Potásico</span>
+          </div>
+          <p class="text-neutral-400 text-[11px] mt-1 leading-relaxed">
+            Emulsionar primero el jabón potásico en agua tibia y luego incorporar el neem. Aplicar en haz y envés de las hojas. Previene trips, arañuela y mosca blanca.
+          </p>
+        </div>
+
+        <div class="ios-card p-4 space-y-2 text-xs">
+          <div class="flex items-center justify-between">
+            <strong class="text-white text-sm">🐛 Bacillus thuringiensis (Bt)</strong>
+            <span class="badge-mono text-[10px]">Floración Outdoor</span>
+          </div>
+          <p class="text-neutral-400">Dosis para tu pulverizador de <strong>${liters} L</strong>:</p>
+          <div class="font-mono">
+            <span class="badge-mono text-white">${(1 * liters).toFixed(1)} g Bt en polvo</span>
+          </div>
+          <p class="text-neutral-400 text-[11px] mt-1 leading-relaxed">
+            Bacteria benéfica que actúa por ingestión contra orugas e isocas. Vital en exterior para evitar que las orugas perforen los cogollos y causen pudrición (botrytis).
+          </p>
+        </div>
+      `;
+    }
+  },
+
+  renderTrichomes() {
+    const grid = $('trichomes-stages-grid');
+    if (!grid) return;
+
+    grid.innerHTML = TRICHOMES_GUIDE.map((t) => {
+      return `
+        <div class="ios-card p-4 space-y-3 flex flex-col justify-between">
+          <div class="space-y-2">
+            <div class="rounded-xl bg-neutral-950 p-2 border border-white/[0.04]">
+              ${t.svg}
+            </div>
+            <div>
+              <span class="${t.badgeClass} text-[10px] !py-0.5 !px-2">${t.status}</span>
+              <h4 class="text-sm font-bold text-white mt-1">${t.title}</h4>
+              <p class="text-[11px] text-neutral-400 mt-0.5">${t.desc}</p>
+            </div>
+            <p class="text-[11px] text-neutral-300 leading-relaxed">${t.effect}</p>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 };
 
 /* ==========================================================================
-   8. MÓDULO EXPORTACIÓN & BACKUP OFFLINE
+   9. MÓDULO EXPORTACIÓN & BACKUP OFFLINE
    ========================================================================== */
 const BackupModule = {
   init() {
-    $('btn-backup-export').addEventListener('click', async () => {
+    $('btn-backup-export')?.addEventListener('click', async () => {
       const plants = await Storage.getPlants();
       const logs = await Storage.getAllLogs();
       const data = { version: 1, exportedAt: new Date().toISOString(), plants, logs };
@@ -1377,7 +2366,7 @@ const BackupModule = {
       showToast('Copia JSON descargada');
     });
 
-    $('input-backup-import').addEventListener('change', async (e) => {
+    $('input-backup-import')?.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       try {
@@ -1396,24 +2385,24 @@ const BackupModule = {
       }
     });
 
-    $('btn-reset-app').addEventListener('click', () => {
+    $('btn-reset-app')?.addEventListener('click', () => {
       if (!confirm('¿Restablecer todo a valores de fábrica? Se borrarán tus plantas locales.')) return;
       localStorage.clear();
       indexedDB.deleteDatabase(DB_NAME);
       location.reload();
     });
 
-    $('btn-open-export').addEventListener('click', () => {
+    $('btn-open-export')?.addEventListener('click', () => {
       $('export-modal').classList.remove('hidden');
       $('export-modal').classList.add('flex');
       this.drawCanvas();
     });
-    $('btn-close-export').addEventListener('click', () => {
+    $('btn-close-export')?.addEventListener('click', () => {
       $('export-modal').classList.add('hidden');
       $('export-modal').classList.remove('flex');
     });
 
-    $('btn-download-png').addEventListener('click', () => {
+    $('btn-download-png')?.addEventListener('click', () => {
       const canvas = $('routine-export-canvas');
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
@@ -1422,7 +2411,7 @@ const BackupModule = {
       showToast('Imagen guardada');
     });
 
-    $('btn-download-pdf').addEventListener('click', () => {
+    $('btn-download-pdf')?.addEventListener('click', () => {
       const canvas = $('routine-export-canvas');
       if (window.jspdf && window.jspdf.jsPDF) {
         const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
@@ -1437,24 +2426,24 @@ const BackupModule = {
 
   drawCanvas() {
     const canvas = $('routine-export-canvas');
+    if (!canvas) return;
     canvas.width = 800;
     canvas.height = 1000;
     const ctx = canvas.getContext('2d');
 
-    // Fondo monocromático profundo
     ctx.fillStyle = '#0a0a0c';
     ctx.fillRect(0, 0, 800, 1000);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 28px -apple-system, sans-serif';
-    ctx.fillText('CannaSur — Resumen de Bitácora', 40, 60);
+    ctx.fillText('CannaSur — Resumen de Bitácora & Cultivo', 40, 60);
 
     ctx.fillStyle = '#a1a1aa';
     ctx.font = '15px monospace';
     ctx.fillText(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, 40, 95);
 
     ctx.fillStyle = '#141416';
-    ctx.fillRect(40, 120, 720, 180);
+    ctx.fillRect(40, 120, 720, 200);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 20px -apple-system, sans-serif';
@@ -1465,25 +2454,26 @@ const BackupModule = {
     let y = 195;
     GrowlogsModule.plants.slice(0, 4).forEach((p) => {
       const days = daysDiff(p.germDate, todayDateStr());
-      ctx.fillText(`• ${p.name} (${p.strain || p.type}) — Día ${days} (${STAGES[p.stage].label})`, 60, y);
+      const health = HEALTH_STATES[p.healthStatus] || HEALTH_STATES.optima;
+      ctx.fillText(`• ${p.name} (${p.strain || p.type}) — Día ${days} (${STAGES[p.stage].label}) [${health.label}]`, 60, y);
       y += 28;
     });
 
     ctx.fillStyle = '#141416';
-    ctx.fillRect(40, 330, 720, 220);
+    ctx.fillRect(40, 350, 720, 220);
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 20px -apple-system, sans-serif';
-    ctx.fillText('💧 Riego y Nutrición Calculada:', 60, 370);
+    ctx.fillText('💧 Riego y Nutrición Calculada:', 60, 390);
 
     ctx.fillStyle = '#d4d4d8';
     ctx.font = '15px -apple-system, sans-serif';
-    ctx.fillText(`Línea: ${BRANDS[CalculatorModule.brand].name} · Etapa: ${STAGES[CalculatorModule.stage].label}`, 60, 405);
-    ctx.fillText(`Volumen: ${CalculatorModule.liters} Litros`, 60, 435);
+    ctx.fillText(`Línea: ${BRANDS[CalculatorModule.brand].name} · Etapa: ${STAGES[CalculatorModule.stage].label}`, 60, 425);
+    ctx.fillText(`Volumen: ${CalculatorModule.liters} Litros`, 60, 455);
   }
 };
 
 /* ==========================================================================
-   9. NAVEGACIÓN PRINCIPAL SPA (APPLE TAB BAR)
+   10. NAVEGACIÓN PRINCIPAL SPA (APPLE TAB BAR)
    ========================================================================== */
 const App = {
   currentView: 'growlogs',
@@ -1491,9 +2481,10 @@ const App = {
   async init() {
     await Storage.init();
     await GrowlogsModule.init();
+    await RemindersModule.init();
     CalculatorModule.init();
     LunarModule.init();
-    PestModule.init();
+    DiagnosticModule.init();
     BackupModule.init();
 
     document.querySelectorAll('[data-nav-target]').forEach((btn) => {
