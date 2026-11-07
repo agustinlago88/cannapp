@@ -1,8 +1,9 @@
 /* ==========================================================================
    CannaSur — Bitácora de Cultivo & Asistente Agronómico
-   Estética Apple-Like: minimalista, orgánica, blanco y negro.
+   Estética: Fondo verde amarillento claro blancuzco, letra negra botánica,
+   tarjetas blancas orgánicas, máxima legibilidad y tipografía refinada.
    Guía agronómica de salud, indicadores visuales de deficiencias,
-   recordatorios de ciclo y calculadora de riego según maceta.
+   recordatorios de ciclo, calculadora de riego y botón de reinicio demo.
    ========================================================================== */
 'use strict';
 
@@ -29,7 +30,7 @@ const HEALTH_STATES = {
   carencia_k: { label: 'Carencia de Potasio (K)', emoji: '🟡', badgeClass: 'health-badge-carencia', desc: 'Bordes aserrados secos y quemados hacia arriba' },
   carencia_mg: { label: 'Carencia de Magnesio (Mg)', emoji: '🟡', badgeClass: 'health-badge-carencia', desc: 'Clorosis internodal en hojas medias (venas verdes)' },
   carencia_ca: { label: 'Carencia de Calcio (Ca)', emoji: '🟡', badgeClass: 'health-badge-carencia', desc: 'Puntos necróticos de óxido en brotes y hojas nuevas' },
-  exceso_garra: { label: 'Hoja en Garra (Exceso N)', emoji: '🔴', badgeClass: 'health-badge-exceso', desc: 'Puntas curvadas hacia abajo en anzuelo, verde petróleo' },
+  exceso_garra: { label: 'Hoja en Garra (Exceso N)', emoji: '🔴', badgeClass: 'health-badge-exceso', desc: 'Puntas curvadas hacia abajo en gancho / garra de águila' },
   sobre_riego: { label: 'Exceso de Riego', emoji: '💧', badgeClass: 'health-badge-riego', desc: 'Hojas caídas pero pesadas, hinchadas y abultadas' },
   falta_riego: { label: 'Sedienta (Sub-riego)', emoji: '🥀', badgeClass: 'health-badge-sed', desc: 'Hojas y tallos marchitos, flácidos y sin turgencia' },
   estres_calor: { label: 'Estrés Calor / Luz', emoji: '☀️', badgeClass: 'health-badge-estres', desc: 'Hojas plegadas en forma de taco o canoa hacia arriba' },
@@ -60,20 +61,13 @@ const SVG_LEAVES = {
           <stop offset="100%" stop-color="#15803d"/>
         </linearGradient>
       </defs>
-      <!-- Foliolo Central -->
-      <path d="M 100 15 C 108 40, 114 70, 100 100 C 86 70, 92 40, 100 15 Z" fill="url(#leafOptima)" stroke="#22c55e" stroke-width="1.2"/>
-      <!-- Foliolos Laterales Superiores -->
+      <path d="M 100 15 C 108 40, 114 70, 100 100 C 86 70, 92 40, 100 15 Z" fill="url(#leafOptima)" stroke="#16a34a" stroke-width="1.2"/>
       <path d="M 100 100 C 120 75, 148 55, 160 40 C 146 68, 126 86, 100 100 Z" fill="url(#leafOptima)" opacity="0.95"/>
       <path d="M 100 100 C 80 75, 52 55, 40 40 C 54 68, 74 86, 100 100 Z" fill="url(#leafOptima)" opacity="0.95"/>
-      <!-- Foliolos Laterales Medios -->
       <path d="M 100 100 C 125 90, 160 85, 175 75 C 155 95, 128 102, 100 100 Z" fill="url(#leafOptima)" opacity="0.9"/>
       <path d="M 100 100 C 75 90, 40 85, 25 75 C 45 95, 72 102, 100 100 Z" fill="url(#leafOptima)" opacity="0.9"/>
-      <!-- Foliolos Basales Pequeños -->
-      <path d="M 100 100 C 118 102, 142 105, 155 102 C 140 112, 118 108, 100 100 Z" fill="url(#leafOptima)" opacity="0.85"/>
-      <path d="M 100 100 C 82 102, 58 105, 45 102 C 60 112, 82 108, 100 100 Z" fill="url(#leafOptima)" opacity="0.85"/>
-      <!-- Pecíolo y Nervadura Central -->
       <line x1="100" y1="100" x2="100" y2="125" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
-      <line x1="100" y1="20" x2="100" y2="100" stroke="#86efac" stroke-width="1" opacity="0.6"/>
+      <line x1="100" y1="20" x2="100" y2="100" stroke="#86efac" stroke-width="1" opacity="0.7"/>
     </svg>
   `,
 
@@ -92,7 +86,6 @@ const SVG_LEAVES = {
       <path d="M 100 100 C 80 75, 52 55, 40 40 C 54 68, 74 86, 100 100 Z" fill="url(#leafNitrogen)"/>
       <path d="M 100 100 C 125 90, 160 85, 175 75 C 155 95, 128 102, 100 100 Z" fill="url(#leafNitrogen)"/>
       <path d="M 100 100 C 75 90, 40 85, 25 75 C 45 95, 72 102, 100 100 Z" fill="url(#leafNitrogen)"/>
-      <!-- Puntas marchitas amarillas/secas -->
       <polygon points="100,15 103,24 97,24" fill="#a16207"/>
       <polygon points="160,40 152,44 156,49" fill="#a16207"/>
       <polygon points="40,40 48,44 44,49" fill="#a16207"/>
@@ -105,17 +98,14 @@ const SVG_LEAVES = {
     <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="leafClaw" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#022c22"/>
-          <stop offset="100%" stop-color="#064e3b"/>
+          <stop offset="0%" stop-color="#064e3b"/>
+          <stop offset="100%" stop-color="#022c22"/>
         </linearGradient>
       </defs>
-      <!-- Foliolos con curvatura extrema hacia abajo (Garra de águila) -->
       <path d="M 100 18 C 114 42, 118 72, 100 100 C 82 72, 86 42, 100 18 Z" fill="url(#leafClaw)" stroke="#14532d" stroke-width="1.2"/>
-      <!-- Punta en gancho hacia abajo -->
       <path d="M 100 18 Q 106 10 98 6 Q 92 10 97 18 Z" fill="#022c22"/>
       <path d="M 100 100 C 122 75, 146 62, 155 52 C 158 56, 146 75, 100 100 Z" fill="url(#leafClaw)"/>
       <path d="M 100 100 C 78 75, 54 62, 45 52 C 42 56, 54 75, 100 100 Z" fill="url(#leafClaw)"/>
-      <!-- Puntas curvadas de los laterales -->
       <path d="M 155 52 Q 163 56 160 63 Q 152 61 155 52 Z" fill="#022c22"/>
       <path d="M 45 52 Q 37 56 40 63 Q 48 61 45 52 Z" fill="#022c22"/>
       <line x1="100" y1="100" x2="100" y2="125" stroke="#064e3b" stroke-width="3" stroke-linecap="round"/>
@@ -134,12 +124,10 @@ const SVG_LEAVES = {
       <path d="M 100 15 C 108 40, 114 70, 100 100 C 86 70, 92 40, 100 15 Z" fill="url(#leafPhos)"/>
       <path d="M 100 100 C 120 75, 148 55, 160 40 C 146 68, 126 86, 100 100 Z" fill="url(#leafPhos)"/>
       <path d="M 100 100 C 80 75, 52 55, 40 40 C 54 68, 74 86, 100 100 Z" fill="url(#leafPhos)"/>
-      <!-- Manchas cobrizas / púrpuras necróticas -->
-      <circle cx="102" cy="45" r="5" fill="#a16207" opacity="0.85"/>
-      <circle cx="95" cy="65" r="6" fill="#7e22ce" opacity="0.8"/>
-      <circle cx="135" cy="62" r="5" fill="#b45309" opacity="0.85"/>
-      <circle cx="65" cy="62" r="5" fill="#7e22ce" opacity="0.8"/>
-      <!-- Pecíolo rojizo / violáceo característico -->
+      <circle cx="102" cy="45" r="5" fill="#a16207" opacity="0.9"/>
+      <circle cx="95" cy="65" r="6" fill="#7e22ce" opacity="0.85"/>
+      <circle cx="135" cy="62" r="5" fill="#b45309" opacity="0.9"/>
+      <circle cx="65" cy="62" r="5" fill="#7e22ce" opacity="0.85"/>
       <line x1="100" y1="100" x2="100" y2="125" stroke="#9333ea" stroke-width="3.5" stroke-linecap="round"/>
     </svg>
   `,
@@ -150,7 +138,6 @@ const SVG_LEAVES = {
       <path d="M 100 15 C 108 40, 114 70, 100 100 C 86 70, 92 40, 100 15 Z" fill="#15803d"/>
       <path d="M 100 100 C 120 75, 148 55, 160 40 C 146 68, 126 86, 100 100 Z" fill="#15803d"/>
       <path d="M 100 100 C 80 75, 52 55, 40 40 C 54 68, 74 86, 100 100 Z" fill="#15803d"/>
-      <!-- Bordes externos quemados naranja / marrón cobrizo -->
       <path d="M 100 15 C 108 35, 112 55, 107 75" fill="none" stroke="#ea580c" stroke-width="3.5" stroke-linecap="round"/>
       <path d="M 100 15 C 92 35, 88 55, 93 75" fill="none" stroke="#ea580c" stroke-width="3.5" stroke-linecap="round"/>
       <path d="M 160 40 C 144 58, 130 72, 118 84" fill="none" stroke="#ea580c" stroke-width="3.5" stroke-linecap="round"/>
@@ -162,11 +149,9 @@ const SVG_LEAVES = {
   // Carencia de Magnesio: Clorosis internodal (venas verdes, tejido entremedio amarillo)
   carencia_mg: `
     <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
-      <!-- Fondo amarillo de la hoja -->
       <path d="M 100 15 C 108 40, 114 70, 100 100 C 86 70, 92 40, 100 15 Z" fill="#fde047"/>
       <path d="M 100 100 C 120 75, 148 55, 160 40 C 146 68, 126 86, 100 100 Z" fill="#fde047"/>
       <path d="M 100 100 C 80 75, 52 55, 40 40 C 54 68, 74 86, 100 100 Z" fill="#fde047"/>
-      <!-- Nervaduras primarias y secundarias intensamente VERDES -->
       <line x1="100" y1="20" x2="100" y2="100" stroke="#15803d" stroke-width="2.8"/>
       <line x1="100" y1="40" x2="108" y2="35" stroke="#15803d" stroke-width="1.6"/>
       <line x1="100" y1="40" x2="92" y2="35" stroke="#15803d" stroke-width="1.6"/>
@@ -184,14 +169,11 @@ const SVG_LEAVES = {
       <path d="M 100 18 C 109 40, 115 70, 100 100 C 85 70, 91 40, 100 18 Z" fill="#86efac"/>
       <path d="M 100 100 C 120 75, 148 55, 158 42 C 144 68, 126 86, 100 100 Z" fill="#86efac"/>
       <path d="M 100 100 C 80 75, 52 55, 42 42 C 56 68, 74 86, 100 100 Z" fill="#86efac"/>
-      <!-- Pecas y manchas de óxido marrón dispersas -->
       <circle cx="102" cy="38" r="2.5" fill="#b45309"/>
       <circle cx="96" cy="46" r="3" fill="#9a3412"/>
       <circle cx="105" cy="58" r="3.5" fill="#b45309"/>
       <circle cx="130" cy="56" r="3" fill="#9a3412"/>
       <circle cx="70" cy="56" r="3" fill="#b45309"/>
-      <circle cx="140" cy="48" r="2.5" fill="#9a3412"/>
-      <circle cx="60" cy="48" r="2.5" fill="#b45309"/>
       <line x1="100" y1="100" x2="100" y2="125" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
     </svg>
   `,
@@ -205,14 +187,12 @@ const SVG_LEAVES = {
           <stop offset="100%" stop-color="#14532d"/>
         </linearGradient>
       </defs>
-      <!-- Foliolos caídos pesadamente con aspecto abultado -->
       <path d="M 100 35 C 112 55, 116 85, 100 105 C 84 85, 88 55, 100 35 Z" fill="url(#leafWaterlog)"/>
       <path d="M 100 105 C 124 95, 155 92, 165 80 C 148 105, 126 110, 100 105 Z" fill="url(#leafWaterlog)"/>
       <path d="M 100 105 C 76 95, 45 92, 35 80 C 52 105, 74 110, 100 105 Z" fill="url(#leafWaterlog)"/>
-      <!-- Gotas de agua pesadas -->
-      <circle cx="100" cy="30" r="3" fill="#38bdf8" opacity="0.8"/>
-      <circle cx="168" cy="78" r="2.5" fill="#38bdf8" opacity="0.8"/>
-      <circle cx="32" cy="78" r="2.5" fill="#38bdf8" opacity="0.8"/>
+      <circle cx="100" cy="30" r="3" fill="#0284c7" opacity="0.8"/>
+      <circle cx="168" cy="78" r="2.5" fill="#0284c7" opacity="0.8"/>
+      <circle cx="32" cy="78" r="2.5" fill="#0284c7" opacity="0.8"/>
       <line x1="100" y1="105" x2="100" y2="125" stroke="#15803d" stroke-width="3.5" stroke-linecap="round"/>
     </svg>
   `,
@@ -224,7 +204,6 @@ const SVG_LEAVES = {
         <path d="M 100 45 C 105 65, 108 90, 100 110 C 92 90, 95 65, 100 45 Z" fill="#84cc16"/>
         <path d="M 100 110 C 115 100, 138 98, 148 90 C 132 110, 118 114, 100 110 Z" fill="#84cc16"/>
         <path d="M 100 110 C 85 100, 62 98, 52 90 C 68 110, 82 114, 100 110 Z" fill="#84cc16"/>
-        <!-- Pliegues de arrugamiento / falta de turgencia -->
         <line x1="100" y1="55" x2="100" y2="110" stroke="#4d7c0f" stroke-width="1.2" stroke-dasharray="2,2"/>
         <line x1="100" y1="110" x2="100" y2="128" stroke="#65a30d" stroke-width="2.5" stroke-linecap="round"/>
       </g>
@@ -234,15 +213,12 @@ const SVG_LEAVES = {
   // Estrés por Calor / Exceso de Luz: Hojas plegadas hacia arriba en forma de taco
   estres_calor: `
     <svg viewBox="0 0 200 130" class="w-full h-32 object-contain" xmlns="http://www.w3.org/2000/svg">
-      <!-- Foliolo central doblado en forma de V longitudinal -->
       <path d="M 100 15 C 105 40, 107 70, 100 100 C 93 70, 95 40, 100 15 Z" fill="#15803d"/>
       <path d="M 100 15 C 103 40, 104 70, 100 100 Z" fill="#4ade80" opacity="0.5"/>
-      <!-- Bordes doblados hacia arriba -->
       <path d="M 100 100 C 115 75, 138 58, 150 45 C 140 68, 122 84, 100 100 Z" fill="#15803d"/>
       <path d="M 100 100 C 85 75, 62 58, 50 45 C 60 68, 78 84, 100 100 Z" fill="#15803d"/>
       <line x1="100" y1="100" x2="100" y2="125" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
-      <!-- Rayos de calor/sol sutiles -->
-      <circle cx="100" cy="10" r="4" fill="#facc15" opacity="0.7"/>
+      <circle cx="100" cy="10" r="4" fill="#facc15" opacity="0.8"/>
     </svg>
   `,
 
@@ -252,16 +228,14 @@ const SVG_LEAVES = {
       <path d="M 100 15 C 108 40, 114 70, 100 100 C 86 70, 92 40, 100 15 Z" fill="#22c55e"/>
       <path d="M 100 100 C 120 75, 148 55, 160 40 C 146 68, 126 86, 100 100 Z" fill="#22c55e"/>
       <path d="M 100 100 C 80 75, 52 55, 40 40 C 54 68, 74 86, 100 100 Z" fill="#22c55e"/>
-      <!-- Raspaduras plateadas de trips -->
-      <ellipse cx="102" cy="45" rx="5" ry="2" fill="#e2e8f0" opacity="0.9" transform="rotate(-15, 102, 45)"/>
-      <ellipse cx="96" cy="62" rx="6" ry="2.5" fill="#e2e8f0" opacity="0.9" transform="rotate(20, 96, 62)"/>
-      <ellipse cx="132" cy="60" rx="5" ry="2" fill="#e2e8f0" opacity="0.9"/>
-      <ellipse cx="68" cy="60" rx="5" ry="2" fill="#e2e8f0" opacity="0.9"/>
-      <!-- Puntos negros de excremento de trips -->
-      <circle cx="105" cy="43" r="1.2" fill="#000000"/>
-      <circle cx="98" cy="65" r="1.2" fill="#000000"/>
-      <circle cx="135" cy="58" r="1.2" fill="#000000"/>
-      <circle cx="65" cy="58" r="1.2" fill="#000000"/>
+      <ellipse cx="102" cy="45" rx="5" ry="2" fill="#cbd5e1" opacity="0.9" transform="rotate(-15, 102, 45)"/>
+      <ellipse cx="96" cy="62" rx="6" ry="2.5" fill="#cbd5e1" opacity="0.9" transform="rotate(20, 96, 62)"/>
+      <ellipse cx="132" cy="60" rx="5" ry="2" fill="#cbd5e1" opacity="0.9"/>
+      <ellipse cx="68" cy="60" rx="5" ry="2" fill="#cbd5e1" opacity="0.9"/>
+      <circle cx="105" cy="43" r="1.3" fill="#1e293b"/>
+      <circle cx="98" cy="65" r="1.3" fill="#1e293b"/>
+      <circle cx="135" cy="58" r="1.3" fill="#1e293b"/>
+      <circle cx="65" cy="58" r="1.3" fill="#1e293b"/>
       <line x1="100" y1="100" x2="100" y2="125" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
     </svg>
   `
@@ -406,11 +380,9 @@ const TRICHOMES_GUIDE = [
     effect: 'Efecto débil, taquicárdico o nulo. Los cannabinoides principales (THC) aún no han sintetizado su pico molecular.',
     svg: `
       <svg viewBox="0 0 100 110" class="h-24 w-full object-contain" xmlns="http://www.w3.org/2000/svg">
-        <!-- Tallo del tricoma -->
-        <path d="M 50 100 Q 52 60 50 42" stroke="rgba(255,255,255,0.4)" stroke-width="6" stroke-linecap="round" fill="none"/>
-        <!-- Cabeza glandular transparente reflectiva -->
-        <circle cx="50" cy="36" r="18" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.6)" stroke-width="2"/>
-        <ellipse cx="44" cy="30" rx="6" ry="3" fill="#ffffff" opacity="0.6"/>
+        <path d="M 50 100 Q 52 60 50 42" stroke="rgba(45,65,35,0.3)" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="36" r="18" fill="rgba(255,255,255,0.7)" stroke="rgba(45,65,35,0.4)" stroke-width="2"/>
+        <ellipse cx="44" cy="30" rx="6" ry="3" fill="#ffffff" opacity="0.9"/>
       </svg>
     `
   },
@@ -423,10 +395,9 @@ const TRICHOMES_GUIDE = [
     effect: 'Pico máximo de concentración de THC. Efecto cerebral, eufórico, lúcido y estimulante. Ideal para sativas y cosechas activas.',
     svg: `
       <svg viewBox="0 0 100 110" class="h-24 w-full object-contain" xmlns="http://www.w3.org/2000/svg">
-        <path d="M 50 100 Q 52 60 50 42" stroke="#d4d4d8" stroke-width="6" stroke-linecap="round" fill="none"/>
-        <!-- Cabeza lechosa opaca pura -->
-        <circle cx="50" cy="36" r="18" fill="#ffffff" stroke="#e4e4e7" stroke-width="2.5" filter="drop-shadow(0 0 6px rgba(255,255,255,0.4))"/>
-        <ellipse cx="44" cy="30" rx="5" ry="2.5" fill="#a1a1aa" opacity="0.3"/>
+        <path d="M 50 100 Q 52 60 50 42" stroke="#52644e" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="36" r="18" fill="#ffffff" stroke="#2d4123" stroke-width="2.5" filter="drop-shadow(0 2px 6px rgba(0,0,0,0.15))"/>
+        <ellipse cx="44" cy="30" rx="5" ry="2.5" fill="#e2ecd6" opacity="0.8"/>
       </svg>
     `
   },
@@ -439,10 +410,9 @@ const TRICHOMES_GUIDE = [
     effect: 'Degradación natural de THC hacia CBN. Proporciona un efecto narcótico, analgésico, sedante y relajante muscular profundo.',
     svg: `
       <svg viewBox="0 0 100 110" class="h-24 w-full object-contain" xmlns="http://www.w3.org/2000/svg">
-        <path d="M 50 100 Q 52 60 50 42" stroke="#ca8a04" stroke-width="6" stroke-linecap="round" fill="none"/>
-        <!-- Cabeza ámbar dorada -->
-        <circle cx="50" cy="36" r="18" fill="#d97706" stroke="#f59e0b" stroke-width="2.5" filter="drop-shadow(0 0 6px rgba(245,158,11,0.5))"/>
-        <ellipse cx="44" cy="30" rx="5" ry="2.5" fill="#fef08a" opacity="0.6"/>
+        <path d="M 50 100 Q 52 60 50 42" stroke="#b45309" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="36" r="18" fill="#d97706" stroke="#b45309" stroke-width="2.5" filter="drop-shadow(0 2px 6px rgba(180,83,9,0.25))"/>
+        <ellipse cx="44" cy="30" rx="5" ry="2.5" fill="#fef08a" opacity="0.8"/>
       </svg>
     `
   }
@@ -505,7 +475,7 @@ function showToast(msg) {
   toastTimer = setTimeout(() => {
     el.style.opacity = '0';
     el.style.transform = 'translate(-50%, 0)';
-  }, 2200);
+  }, 2400);
 }
 
 function compressImage(file, maxWidth = 960, quality = 0.78) {
@@ -684,12 +654,20 @@ const Storage = {
     localStorage.setItem('cannasur_logs', JSON.stringify(logs));
   },
 
-  async seedIfEmpty() {
-    const plants = await this.getPlants();
-    if (plants.length > 0) return;
+  /* Reinicia toda la app y genera un cultivo de ejemplo completo */
+  async resetToDemo() {
+    const existingPlants = await this.getPlants();
+    for (const p of existingPlants) {
+      await this.deletePlant(p.id);
+    }
+    const allLogs = await this.getAllLogs();
+    for (const l of allLogs) {
+      await this.deleteLog(l.id);
+    }
 
-    const germDate = new Date(Date.now() - 38 * DAY_MS).toISOString().split('T')[0];
-    const demoPlant = {
+    // Planta 1: Gorilla Glue #4 en Vegetativo (Maceta 15L, Salud Óptima)
+    const germVeg = new Date(Date.now() - 42 * DAY_MS).toISOString().split('T')[0];
+    const plant1 = {
       id: 'demo-plant-1',
       name: 'Gorilla Glue #4',
       strain: 'Gorilla Glue #4 (Feminizada)',
@@ -698,50 +676,110 @@ const Storage = {
       potLiters: 15,
       cycleDays: 140,
       healthStatus: 'optima',
-      germDate: germDate,
+      germDate: germVeg,
       stage: 'vegetativo',
       createdAt: new Date().toISOString()
     };
-    await this.savePlant(demoPlant);
+    await this.savePlant(plant1);
 
-    const logs = [
+    // Planta 2: Tangie Auto en Floración (Maceta 11L, Carencia P con tratamiento)
+    const germFlora = new Date(Date.now() - 56 * DAY_MS).toISOString().split('T')[0];
+    const plant2 = {
+      id: 'demo-plant-2',
+      name: 'Tangie Auto',
+      strain: 'Tangie (Automática / Sativa)',
+      type: 'automatica',
+      medium: 'sustrato',
+      potLiters: 11,
+      cycleDays: 80,
+      healthStatus: 'carencia_p',
+      germDate: germFlora,
+      stage: 'floracion',
+      createdAt: new Date().toISOString()
+    };
+    await this.savePlant(plant2);
+
+    // Logs de demostración para Planta 1
+    const logs1 = [
       {
         id: 'log-1',
-        plantId: demoPlant.id,
+        plantId: plant1.id,
         type: 'transplante',
-        dateTime: new Date(Date.now() - 36 * DAY_MS).toISOString(),
-        notes: 'Semilla germinada con gran vigor en servilleta húmeda. Pasada con cuidado a maceta inicial de 1L con sustrato liviano.',
+        dateTime: new Date(Date.now() - 40 * DAY_MS).toISOString(),
+        notes: 'Semilla germinada con gran vigor en servilleta húmeda. Trasplante a maceta de enraizamiento inicial con sustrato liviano.',
         metrics: { potSize: '1 L' }
       },
       {
         id: 'log-2',
-        plantId: demoPlant.id,
-        type: 'riego_nutrientes',
-        dateTime: new Date(Date.now() - 15 * DAY_MS).toISOString(),
-        notes: 'Primer riego nutricional con micorrizas y enraizante biológico. El cepellón de raíces colonizó todo el fondo.',
-        metrics: { liters: 1.5, ph: 6.2, ec: 0.9, products: 'Micorrizas 1g/L + Enraizante orgánico' }
+        plantId: plant1.id,
+        type: 'transplante',
+        dateTime: new Date(Date.now() - 25 * DAY_MS).toISOString(),
+        notes: 'Trasplante definitivo a maceta geotextil de 15L. Micorrizas espolvoreadas directo en el cepellón para colonización rápida.',
+        metrics: { potSize: '15 L' }
       },
       {
         id: 'log-3',
-        plantId: demoPlant.id,
-        type: 'poda',
-        dateTime: new Date(Date.now() - 7 * DAY_MS).toISOString(),
-        notes: 'Poda apical en el 4to nudo para abrir la copa y generar múltiples ramas principales. Cicatrizó en 24 horas.',
-        metrics: { pruneType: 'Poda Apical' }
+        plantId: plant1.id,
+        type: 'riego_nutrientes',
+        dateTime: new Date(Date.now() - 14 * DAY_MS).toISOString(),
+        notes: 'Riego vegetativo vigoroso con base rica en nitrógeno y bioestimulante de algas. Respuesta foliar excelente.',
+        metrics: { liters: 2.2, ph: 6.3, ec: 1.1, products: 'Base Crecimiento (N) 3ml/L + Algas' }
       },
       {
         id: 'log-4',
-        plantId: demoPlant.id,
+        plantId: plant1.id,
+        type: 'poda',
+        dateTime: new Date(Date.now() - 6 * DAY_MS).toISOString(),
+        notes: 'Poda apical en el 4to nudo para promover 4 ramas principales bien equilibradas. Cicatrizó en 24 horas sin estrés.',
+        metrics: { pruneType: 'Poda Apical' }
+      },
+      {
+        id: 'log-5',
+        plantId: plant1.id,
         type: 'foliar',
-        dateTime: new Date(Date.now() - 2 * DAY_MS).toISOString(),
-        notes: 'Pulverización foliar preventiva al caer el sol: Aceite de Neem + Jabón Potásico emulsionado en ambas caras de las hojas.',
+        dateTime: new Date(Date.now() - 1 * DAY_MS).toISOString(),
+        notes: 'Pulverización foliar preventiva al atardecer: Aceite de Neem + Jabón Potásico emulsionado en ambas caras.',
         metrics: { foliarType: 'Aceite de Neem + Jabón Potásico', liters: 1.0 }
       }
     ];
 
-    for (const log of logs) {
-      await this.saveLog(log);
+    // Logs de demostración para Planta 2
+    const logs2 = [
+      {
+        id: 'log-6',
+        plantId: plant2.id,
+        type: 'cambio_etapa',
+        dateTime: new Date(Date.now() - 32 * DAY_MS).toISOString(),
+        notes: 'Aparición de primeros pistilos blancos en todos los nudos. Comienza el período de floración.',
+        metrics: { stage: 'floracion' }
+      },
+      {
+        id: 'log-7',
+        plantId: plant2.id,
+        type: 'riego_nutrientes',
+        dateTime: new Date(Date.now() - 10 * DAY_MS).toISOString(),
+        notes: 'Riego con base de floración y melaza de caña. Formación de cálices y tricomas en los cogollos principales.',
+        metrics: { liters: 1.6, ph: 6.5, ec: 1.3, products: 'Base Floración (PK) + Melazas' }
+      },
+      {
+        id: 'log-8',
+        plantId: plant2.id,
+        type: 'nota_foto',
+        dateTime: new Date(Date.now() - 3 * DAY_MS).toISOString(),
+        notes: '🩺 Diagnóstico visual: Hojas adultas con manchas bronce/violáceas y pecíolos rojizos. Protocolo aplicado: enmienda rica en fósforo y pH regulado a 6.5.',
+        metrics: { healthUpdate: 'carencia_p' }
+      }
+    ];
+
+    for (const l of [...logs1, ...logs2]) {
+      await this.saveLog(l);
     }
+  },
+
+  async seedIfEmpty() {
+    const plants = await this.getPlants();
+    if (plants.length > 0) return;
+    await this.resetToDemo();
   }
 };
 
@@ -780,7 +818,7 @@ const RemindersModule = {
     if (Notification.permission === 'granted') {
       $('notif-bell-icon').textContent = '🔔';
       $('notif-status-text').textContent = 'Activas';
-      $('btn-toggle-notifications')?.classList.add('border-white/40');
+      $('btn-toggle-notifications')?.classList.add('border-[#2d4123]/30');
       $('web-notif-permission-banner')?.classList.add('hidden');
     } else if (Notification.permission === 'denied') {
       $('notif-bell-icon').textContent = '🔕';
@@ -802,7 +840,7 @@ const RemindersModule = {
       const perm = await Notification.requestPermission();
       this.checkNotificationStatus();
       if (perm === 'granted') {
-        showToast('🔔 Notificaciones del cultivo activadas');
+        showToast('🔔 Notificaciones de cultivo activadas');
         new Notification('CannaSur — Recordatorios Activos', {
           body: 'Te avisaremos cuando toque regar, fertilizar o aplicar preventivos.',
           icon: 'favicon.ico'
@@ -959,7 +997,7 @@ const RemindersModule = {
 
     if (all.length === 0) {
       listEl.innerHTML = `
-        <div class="rounded-xl bg-neutral-900/60 border border-white/[0.06] p-3 text-center text-xs text-neutral-400">
+        <div class="rounded-xl bg-[#edf2e2] border border-[#2d4123]/10 p-3 text-center text-xs text-[#384933] font-medium">
           <span class="text-sm">✨</span> Todas tus plantas están hidratadas y al día. Buen cultivo.
         </div>
       `;
@@ -971,7 +1009,7 @@ const RemindersModule = {
       const health = HEALTH_STATES[plant?.healthStatus] || HEALTH_STATES.optima;
 
       return `
-        <div class="rounded-xl bg-neutral-900 border border-white/[0.08] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition hover:border-white/20">
+        <div class="rounded-xl bg-[#edf2e2] border border-[#2d4123]/12 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition hover:border-[#2d4123]/25">
           <div class="flex items-start gap-2.5 min-w-0">
             <!-- Botón Checkbox Apple Reminders -->
             <button type="button" class="reminder-checkbox mt-0.5 shrink-0"
@@ -981,15 +1019,15 @@ const RemindersModule = {
             <div class="min-w-0">
               <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="${rem.badgeClass} text-[10px] !py-0.5 !px-2">${rem.badge}</span>
-                <span class="font-bold text-xs text-white truncate">${esc(rem.plantName)}</span>
+                <span class="font-bold text-xs text-[#121e10] truncate">${esc(rem.plantName)}</span>
                 <span class="${health.badgeClass} text-[9px] !py-0 !px-1.5">${health.emoji} ${health.label.split(' ')[0]}</span>
               </div>
-              <p class="text-[11px] text-neutral-300 mt-1 leading-snug">${esc(rem.desc)}</p>
+              <p class="text-[11px] text-[#384933] mt-1 leading-snug font-medium">${esc(rem.desc)}</p>
             </div>
           </div>
 
           <div class="flex items-center justify-end gap-1.5 shrink-0">
-            <button type="button" class="ios-btn ios-btn-secondary text-[11px] !py-1 !px-3 !min-h-[2rem]"
+            <button type="button" class="ios-btn ios-btn-secondary text-[11px] !py-1 !px-3 !min-h-[2rem] font-semibold"
               onclick="RemindersModule.openReminderModal('${rem.id}')">
               ${rem.actionText} →
             </button>
@@ -1050,7 +1088,7 @@ const RemindersModule = {
       : GrowlogsModule.plants[0];
 
     if (!activePlant) {
-      container.innerHTML = `<p class="text-neutral-500 italic">No hay plantas creadas para proyectar el ciclo.</p>`;
+      container.innerHTML = `<p class="text-[#5c6f56] italic">No hay plantas creadas para proyectar el ciclo.</p>`;
       return;
     }
 
@@ -1060,8 +1098,6 @@ const RemindersModule = {
     const daysLived = daysDiff(germDate, todayDateStr());
     const currentWeek = Math.max(1, Math.floor(daysLived / 7) + 1);
     const pot = activePlant.potLiters || 15;
-    const isAuto = activePlant.type === 'automatica';
-    const totalWeeks = isAuto ? 11 : 18;
 
     const weeksPlan = [
       { w: 'Sem 1-2', days: 'Días 1-14', title: '🌱 Plántula & Enraizamiento', desc: 'Riegos mínimos (~5% sustrato). Estimulante radicular y micorrizas.' },
@@ -1081,19 +1117,19 @@ const RemindersModule = {
       return `
         <div class="rounded-xl border p-2.5 transition ${
           isCurrent
-            ? 'bg-neutral-900 border-white/40 text-white shadow-sm'
+            ? 'bg-white border-[#2d4123]/30 text-[#121e10] shadow-sm font-semibold'
             : isPast
-            ? 'bg-neutral-950/60 border-white/[0.04] text-neutral-400'
-            : 'bg-neutral-950 border-white/[0.06] text-neutral-300'
+            ? 'bg-[#edf2e2]/60 border-[#2d4123]/10 text-[#5c6f56]'
+            : 'bg-[#edf2e2] border-[#2d4123]/10 text-[#384933]'
         }">
           <div class="flex items-center justify-between text-[11px] mb-1">
             <span class="font-bold flex items-center gap-1.5">
               <span>${isPast ? '✓' : isCurrent ? '📍' : '○'}</span>
               <span>${step.title}</span>
             </span>
-            <span class="font-mono text-[10px] text-neutral-400">${step.w} · ${step.days}</span>
+            <span class="font-mono text-[10px] text-[#5c6f56]">${step.w} · ${step.days}</span>
           </div>
-          <p class="text-[11px] text-neutral-400 pl-4 leading-relaxed">${step.desc}</p>
+          <p class="text-[11px] text-[#384933] pl-4 leading-relaxed font-normal">${step.desc}</p>
         </div>
       `;
     }).join('');
@@ -1116,11 +1152,20 @@ const GrowlogsModule = {
 
     $('btn-top-new-plant')?.addEventListener('click', () => this.openPlantModal());
     $('btn-empty-add-plant')?.addEventListener('click', () => this.openPlantModal());
-    $('btn-load-demo-plant')?.addEventListener('click', async () => {
-      await Storage.seedIfEmpty();
+
+    // Botones de reinicio / carga de demostración
+    const triggerDemoReset = async () => {
+      if (!confirm('¿Cargar la versión de demostración? Se restaurarán 2 plantas de ejemplo con bitácora completa, riegos y recordatorios.')) return;
+      await Storage.resetToDemo();
       await this.loadPlants();
-      showToast('🌱 Planta de ejemplo cargada');
-    });
+      this.showDashboard();
+      App.navigate('growlogs');
+      showToast('🌱 Versión de demostración cargada');
+    };
+
+    $('btn-top-reset-demo')?.addEventListener('click', triggerDemoReset);
+    $('btn-config-reset-demo')?.addEventListener('click', triggerDemoReset);
+    $('btn-load-demo-plant')?.addEventListener('click', triggerDemoReset);
 
     $('btn-back-to-plants')?.addEventListener('click', () => this.showDashboard());
     $('btn-edit-plant-info')?.addEventListener('click', () => {
@@ -1269,7 +1314,7 @@ const GrowlogsModule = {
     empty?.classList.add('hidden');
 
     if (filtered.length === 0) {
-      grid.innerHTML = `<div class="col-span-full ios-card p-6 text-center text-xs text-neutral-400">No hay plantas en etapa ${this.activeFilter}.</div>`;
+      grid.innerHTML = `<div class="col-span-full ios-card p-6 text-center text-xs text-[#5c6f56]">No hay plantas en etapa ${this.activeFilter}.</div>`;
       return;
     }
 
@@ -1287,45 +1332,45 @@ const GrowlogsModule = {
       return `
         <div class="ios-card ios-card-press p-4 flex flex-col justify-between cursor-pointer space-y-3" onclick="GrowlogsModule.openPlantDetail('${p.id}')">
           <div class="space-y-3">
-            <!-- Fila Superior: Foto/Avatar + Nombre -->
+            <!-- Fila Superior: Avatar + Nombre + Estado -->
             <div class="flex items-center gap-3">
-              <div class="h-14 w-14 shrink-0 rounded-2xl bg-neutral-900 border border-white/10 overflow-hidden flex items-center justify-center">
+              <div class="h-14 w-14 shrink-0 rounded-2xl bg-[#edf2e2] border border-[#2d4123]/15 overflow-hidden flex items-center justify-center">
                 ${p.coverPhoto
                   ? `<img src="${p.coverPhoto}" alt="${esc(p.name)}" class="h-full w-full object-cover" />`
                   : `<span class="text-2xl">${st.emoji}</span>`}
               </div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center justify-between gap-1">
-                  <h3 class="text-base font-bold text-white tracking-tight leading-tight truncate">${esc(p.name)}</h3>
-                  <span class="${health.badgeClass} text-[9px] !py-0.5 !px-1.5 shrink-0">${health.emoji} ${health.label.split(' ')[0]}</span>
+                  <h3 class="text-base font-bold text-[#121e10] tracking-tight leading-tight truncate">${esc(p.name)}</h3>
+                  <span class="${health.badgeClass} text-[9px] !py-0.5 !px-2 shrink-0 rounded-full">${health.emoji} ${health.label.split(' ')[0]}</span>
                 </div>
-                <p class="text-xs text-neutral-400 truncate mt-0.5">${esc(p.strain || 'Genética personalizada')}</p>
+                <p class="text-xs text-[#5c6f56] truncate mt-0.5 font-medium">${esc(p.strain || 'Genética personalizada')}</p>
                 <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
                   <span class="badge-mono font-mono text-[10px]">Día ${days}</span>
-                  <span class="badge-mono text-[10px] text-neutral-300">Sem ${weeks}</span>
+                  <span class="badge-mono text-[10px] text-[#384933]">Sem ${weeks}</span>
                   <span class="${st.badgeClass} text-[10px]">${st.label}</span>
-                  <span class="badge-mono text-[10px] text-neutral-300">🪴 ${pot} L</span>
-                  <span class="badge-mono text-[10px] text-white font-mono">💧 ~${minWater}–${maxWater} L</span>
+                  <span class="badge-mono text-[10px] text-[#384933]">🪴 ${pot} L</span>
+                  <span class="badge-mono text-[10px] text-[#121e10] font-mono font-bold">💧 ~${minWater}–${maxWater} L</span>
                 </div>
               </div>
             </div>
 
-            <!-- Última Nota Registrada (Estilo Apple Notes Snippet) -->
-            <div class="rounded-xl bg-neutral-950 p-2.5 border border-white/[0.04] text-[11px] text-neutral-400">
+            <!-- Última Nota Registrada (Snippet estilo Libreta Apple) -->
+            <div class="rounded-xl bg-[#edf2e2] p-2.5 border border-[#2d4123]/10 text-[11px] text-[#384933]">
               ${lastLog
-                ? `<div class="flex items-center justify-between text-[10px] text-neutral-500 mb-0.5 font-mono">
+                ? `<div class="flex items-center justify-between text-[10px] text-[#5c6f56] mb-0.5 font-mono font-semibold">
                      <span>${LOG_TYPES[lastLog.type]?.icon || '📝'} ${LOG_TYPES[lastLog.type]?.label || 'Nota'}</span>
                      <span>${timeAgo(lastLog.dateTime)}</span>
                    </div>
-                   <p class="text-neutral-300 line-clamp-2 leading-relaxed">"${esc(lastLog.notes || 'Entrada registrada')}"</p>`
-                : `<p class="italic text-neutral-500">Sin notas aún. Toca para empezar su bitácora.</p>`}
+                   <p class="text-[#121e10] line-clamp-2 leading-relaxed font-medium">"${esc(lastLog.notes || 'Entrada registrada')}"</p>`
+                : `<p class="italic text-[#6d8066]">Sin notas aún. Toca para empezar su bitácora.</p>`}
             </div>
           </div>
 
-          <!-- Pie sutil -->
-          <div class="flex items-center justify-between pt-1 text-[11px] text-neutral-400 font-medium">
+          <!-- Pie de tarjeta -->
+          <div class="flex items-center justify-between pt-1 text-[11px] text-[#5c6f56] font-semibold border-t border-[#2d4123]/10">
             <span>${p.medium} · ${p.type}</span>
-            <span class="text-white text-xs">Abrir bitácora →</span>
+            <span class="text-[#121e10] text-xs font-bold">Abrir bitácora →</span>
           </div>
         </div>
       `;
@@ -1371,7 +1416,7 @@ const GrowlogsModule = {
       <div class="space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div class="flex items-center gap-4">
-            <div class="h-16 w-16 shrink-0 rounded-2xl bg-neutral-900 border border-white/10 overflow-hidden flex items-center justify-center">
+            <div class="h-16 w-16 shrink-0 rounded-2xl bg-[#edf2e2] border border-[#2d4123]/15 overflow-hidden flex items-center justify-center shadow-sm">
               ${plant.coverPhoto
                 ? `<img src="${plant.coverPhoto}" alt="${esc(plant.name)}" class="h-full w-full object-cover cursor-pointer" onclick="GrowlogsModule.openLightbox('${plant.coverPhoto}', '${esc(plant.name)}')">`
                 : `<span class="text-3xl">${st.emoji}</span>`}
@@ -1379,34 +1424,34 @@ const GrowlogsModule = {
 
             <div>
               <div class="flex items-center gap-2 flex-wrap">
-                <h2 class="text-xl font-extrabold text-white tracking-tight">${esc(plant.name)}</h2>
+                <h2 class="text-xl font-extrabold text-[#121e10] tracking-tight">${esc(plant.name)}</h2>
                 <span class="${st.badgeClass} text-[10px]">${st.label}</span>
-                <span class="${health.badgeClass} text-[10px]">${health.emoji} ${health.label}</span>
+                <span class="${health.badgeClass} text-[10px] rounded-full !px-2.5">${health.emoji} ${health.label}</span>
               </div>
-              <p class="text-xs text-neutral-400 mt-0.5">${esc(plant.strain || 'Variedad de jardín')} · <span class="capitalize">${plant.type}</span></p>
-              <div class="flex items-center gap-2 mt-2 font-mono text-xs flex-wrap">
-                <span class="text-white font-bold">Día ${days}</span>
-                <span class="text-neutral-600">·</span>
-                <span class="text-neutral-300">Semana ${weeks}</span>
-                <span class="text-neutral-600">·</span>
-                <span class="text-neutral-400 font-sans">${plant.medium}</span>
-                <span class="text-neutral-600">·</span>
-                <span class="text-white">🪴 Maceta ${pot} L</span>
-                <span class="text-neutral-600">·</span>
-                <span class="text-neutral-300 font-sans">💧 Riego prom.: ~${minWater}–${maxWater} L</span>
+              <p class="text-xs text-[#5c6f56] mt-0.5 font-medium">${esc(plant.strain || 'Variedad de jardín')} · <span class="capitalize">${plant.type}</span></p>
+              <div class="flex items-center gap-2 mt-2 font-mono text-xs flex-wrap font-semibold">
+                <span class="text-[#121e10] font-bold">Día ${days}</span>
+                <span class="text-[#889980]">·</span>
+                <span class="text-[#384933]">Semana ${weeks}</span>
+                <span class="text-[#889980]">·</span>
+                <span class="text-[#5c6f56] font-sans">${plant.medium}</span>
+                <span class="text-[#889980]">·</span>
+                <span class="text-[#121e10]">🪴 Maceta ${pot} L</span>
+                <span class="text-[#889980]">·</span>
+                <span class="text-[#384933] font-sans">💧 Riego: ~${minWater}–${maxWater} L</span>
               </div>
             </div>
           </div>
 
           <!-- Acciones Rápidas de Salud y Etapa -->
           <div class="flex flex-wrap items-center gap-2">
-            <button type="button" class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.1rem]"
+            <button type="button" class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.1rem] font-bold"
               onclick="App.navigate('plagas')">
               <span>🩺 Diagnosticar</span>
             </button>
-            <div class="flex items-center gap-2 bg-neutral-950 px-3 py-1.5 rounded-xl border border-white/[0.08]">
-              <span class="text-[11px] font-semibold text-neutral-400 uppercase">Etapa:</span>
-              <select id="quick-change-stage" class="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer">
+            <div class="flex items-center gap-2 bg-[#edf2e2] px-3 py-1.5 rounded-xl border border-[#2d4123]/15">
+              <span class="text-[11px] font-bold text-[#384933] uppercase">Etapa:</span>
+              <select id="quick-change-stage" class="bg-transparent text-xs font-bold text-[#121e10] focus:outline-none cursor-pointer">
                 <option value="plantula" ${plant.stage === 'plantula' ? 'selected' : ''}>🌱 Plántula</option>
                 <option value="vegetativo" ${plant.stage === 'vegetativo' ? 'selected' : ''}>🌿 Vegetativo</option>
                 <option value="transicion" ${plant.stage === 'transicion' ? 'selected' : ''}>⚡ Transición</option>
@@ -1418,13 +1463,13 @@ const GrowlogsModule = {
         </div>
 
         <!-- Barra de Progreso del Ciclo hasta Cosecha -->
-        <div class="rounded-xl bg-neutral-950 p-3 border border-white/[0.06] space-y-1.5">
+        <div class="rounded-xl bg-[#edf2e2] p-3 border border-[#2d4123]/12 space-y-1.5">
           <div class="flex items-center justify-between text-[11px]">
-            <span class="text-neutral-400 font-medium">Ciclo de vida: Día ${days} de ~${cycleDays} (${progressPct}%)</span>
-            <span class="font-mono text-white font-bold">${Math.max(0, cycleDays - days)} días para cosecha</span>
+            <span class="text-[#384933] font-semibold">Ciclo de vida: Día ${days} de ~${cycleDays} (${progressPct}%)</span>
+            <span class="font-mono text-[#121e10] font-bold">${Math.max(0, cycleDays - days)} días para cosecha</span>
           </div>
-          <div class="w-full bg-neutral-900 rounded-full h-2 overflow-hidden border border-white/[0.06]">
-            <div class="bg-white h-full rounded-full transition-all duration-300" style="width: ${progressPct}%"></div>
+          <div class="w-full bg-[#dce6d1] rounded-full h-2.5 overflow-hidden border border-[#2d4123]/10">
+            <div class="bg-[#182e14] h-full rounded-full transition-all duration-300" style="width: ${progressPct}%"></div>
           </div>
         </div>
       </div>
@@ -1495,7 +1540,7 @@ const GrowlogsModule = {
         if (m.potSize) metricsBadges += `<span class="badge-mono text-[10px]">Maceta ${esc(m.potSize)}</span>`;
         if (m.healthUpdate) {
           const hState = HEALTH_STATES[m.healthUpdate];
-          if (hState) metricsBadges += `<span class="${hState.badgeClass} text-[10px]">${hState.emoji} ${hState.label}</span>`;
+          if (hState) metricsBadges += `<span class="${hState.badgeClass} text-[10px] rounded-full !px-2">${hState.emoji} ${hState.label}</span>`;
         }
       }
 
@@ -1507,26 +1552,26 @@ const GrowlogsModule = {
                 <span class="badge-mono">${t.icon} ${t.label}</span>
                 ${dayAtLog != null ? `<span class="badge-mono text-[10px] font-mono">Día ${dayAtLog}</span>` : ''}
               </div>
-              <div class="text-[11px] text-neutral-400 mt-1 font-mono">
-                ${formatPrettyDate(log.dateTime)} <span class="text-neutral-500">(${timeAgo(log.dateTime)})</span>
+              <div class="text-[11px] text-[#5c6f56] mt-1 font-mono font-semibold">
+                ${formatPrettyDate(log.dateTime)} <span class="text-[#7d9178]">(${timeAgo(log.dateTime)})</span>
               </div>
             </div>
 
             <button type="button" onclick="GrowlogsModule.deleteLogEntry('${log.id}')"
-              class="text-neutral-500 hover:text-white p-1 text-xs transition" title="Eliminar entrada">
+              class="text-[#7d9178] hover:text-[#121e10] p-1 text-xs transition" title="Eliminar entrada">
               ✕
             </button>
           </div>
 
           ${metricsBadges ? `<div class="flex flex-wrap gap-1 text-[11px] pt-0.5">${metricsBadges}</div>` : ''}
 
-          ${log.notes ? `<p class="text-xs text-neutral-200 leading-relaxed whitespace-pre-line">${esc(log.notes)}</p>` : ''}
+          ${log.notes ? `<p class="text-xs text-[#121e10] leading-relaxed whitespace-pre-line font-medium">${esc(log.notes)}</p>` : ''}
 
           ${log.photo ? `
             <div class="pt-1">
               <img src="${log.photo}" alt="Foto de bitácora"
                 onclick="GrowlogsModule.openLightbox('${log.photo}', '${esc(t.label)} · Día ${dayAtLog}')"
-                class="h-32 sm:h-40 w-auto object-cover rounded-xl border border-white/10 cursor-pointer hover:border-white/30 transition shadow-sm" />
+                class="h-32 sm:h-40 w-auto object-cover rounded-xl border border-[#2d4123]/15 cursor-pointer hover:border-[#2d4123]/35 transition shadow-sm" />
             </div>
           ` : ''}
         </div>
@@ -1575,8 +1620,8 @@ const GrowlogsModule = {
       const active = btn.dataset.type === type;
       btn.className = `log-type-btn rounded-xl border p-2 text-center text-xs font-semibold transition ${
         active
-          ? 'bg-white text-black border-white shadow'
-          : 'bg-neutral-900 border-white/[0.08] text-neutral-400 hover:text-white'
+          ? 'bg-[#182e14] text-white border-[#182e14] shadow-sm'
+          : 'bg-[#edf2e2] border-[#2d4123]/15 text-[#384933] hover:text-[#121e10]'
       }`;
     });
 
@@ -1591,39 +1636,39 @@ const GrowlogsModule = {
       dyn.innerHTML = `
         <div class="grid grid-cols-3 gap-2">
           <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Litros</label>
+            <label class="block text-[11px] font-bold text-[#121e10] mb-1 uppercase">Litros</label>
             <input id="log-liters" type="number" step="0.25" value="${defWater}" class="ios-input w-full font-mono text-xs" required />
           </div>
           <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">pH</label>
+            <label class="block text-[11px] font-bold text-[#121e10] mb-1 uppercase">pH</label>
             <input id="log-ph" type="number" step="0.1" placeholder="6.3" class="ios-input w-full font-mono text-xs" />
           </div>
           <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">EC</label>
+            <label class="block text-[11px] font-bold text-[#121e10] mb-1 uppercase">EC</label>
             <input id="log-ec" type="number" step="0.1" placeholder="0.4" class="ios-input w-full font-mono text-xs" />
           </div>
         </div>
-        <p class="text-[10px] text-neutral-400 mt-1">💡 Riego promedio para tu maceta de ${pot} L: <strong>~${minWater} a ${maxWater} L</strong> (10% a 15% del sustrato).</p>
+        <p class="text-[10px] text-[#5c6f56] mt-1 font-medium">💡 Riego promedio para maceta de ${pot} L: <strong>~${minWater} a ${maxWater} L</strong> (10% a 15% del sustrato).</p>
       `;
     } else if (type === 'riego_nutrientes') {
       dyn.innerHTML = `
         <div class="grid grid-cols-3 gap-2">
           <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Litros</label>
+            <label class="block text-[11px] font-bold text-[#121e10] mb-1 uppercase">Litros</label>
             <input id="log-liters" type="number" step="0.25" value="${defWater}" class="ios-input w-full font-mono text-xs" required />
           </div>
           <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">pH</label>
+            <label class="block text-[11px] font-bold text-[#121e10] mb-1 uppercase">pH</label>
             <input id="log-ph" type="number" step="0.1" placeholder="6.4" class="ios-input w-full font-mono text-xs" />
           </div>
           <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">EC</label>
+            <label class="block text-[11px] font-bold text-[#121e10] mb-1 uppercase">EC</label>
             <input id="log-ec" type="number" step="0.1" placeholder="1.2" class="ios-input w-full font-mono text-xs" />
           </div>
         </div>
-        <p class="text-[10px] text-neutral-400 mt-1">💡 Riego promedio para tu maceta de ${pot} L: <strong>~${minWater} a ${maxWater} L</strong> (10% a 15% del sustrato).</p>
+        <p class="text-[10px] text-[#5c6f56] mt-1 font-medium">💡 Riego promedio para maceta de ${pot} L: <strong>~${minWater} a ${maxWater} L</strong> (10% a 15% del sustrato).</p>
         <div>
-          <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Productos de la Mezcla</label>
+          <label class="block text-[11px] font-bold text-[#121e10] mb-1 uppercase">Productos de la Mezcla</label>
           <input id="log-products" type="text" placeholder="Ej: Fertilizante base + Melaza / Bioestimulante" class="ios-input w-full text-xs" />
         </div>
       `;
@@ -1631,8 +1676,8 @@ const GrowlogsModule = {
       dyn.innerHTML = `
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Tratamiento Foliar</label>
-            <select id="log-foliar-type" class="ios-input w-full text-xs">
+            <label class="block text-[11px] font-bold text-[#121e10] mb-1 uppercase">Tratamiento Foliar</label>
+            <select id="log-foliar-type" class="ios-input w-full text-xs font-semibold">
               <option value="Aceite de Neem + Jabón Potásico">🌿 Neem + Jabón Potásico</option>
               <option value="Bacillus thuringiensis (Bt)">🐛 Bacillus thuringiensis</option>
               <option value="Jabón Potásico solo">🧼 Jabón Potásico solo</option>
@@ -1641,7 +1686,7 @@ const GrowlogsModule = {
             </select>
           </div>
           <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Volumen</label>
+            <label class="block text-[11px] font-bold text-[#121e10] mb-1 uppercase">Volumen</label>
             <input id="log-liters" type="number" step="0.5" value="1.0" class="ios-input w-full font-mono text-xs" />
           </div>
         </div>
@@ -1649,8 +1694,8 @@ const GrowlogsModule = {
     } else if (type === 'poda') {
       dyn.innerHTML = `
         <div>
-          <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Tipo de Intervención</label>
-          <select id="log-prune-type" class="ios-input w-full text-xs">
+          <label class="block text-[11px] font-bold text-[#121e10] mb-1 uppercase">Tipo de Intervención</label>
+          <select id="log-prune-type" class="ios-input w-full text-xs font-semibold">
             <option value="Poda Apical">Poda Apical (Ápice principal)</option>
             <option value="Poda FIM">Poda FIM</option>
             <option value="Defoliación de bajos (Lollipop)">Defoliación de bajos (Lollipop)</option>
@@ -1663,11 +1708,11 @@ const GrowlogsModule = {
       dyn.innerHTML = `
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Nueva Maceta</label>
+            <label class="block text-[11px] font-bold text-[#121e10] mb-1 uppercase">Nueva Maceta</label>
             <input id="log-pot-size" type="text" placeholder="Ej: 15 L Geotextil" class="ios-input w-full text-xs" />
           </div>
           <div>
-            <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Sustrato</label>
+            <label class="block text-[11px] font-bold text-[#121e10] mb-1 uppercase">Sustrato</label>
             <input id="log-substrate" type="text" placeholder="Ej: Growmix + Micorrizas" class="ios-input w-full text-xs" />
           </div>
         </div>
@@ -1966,33 +2011,33 @@ const CalculatorModule = {
       cont.innerHTML = `
         <div class="ios-card p-3.5 text-xs space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Outdoor Hemisferio Sur</span>
-            <span class="font-mono text-[11px] text-neutral-400">Buenos Aires / Argentina</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-[#384933]">Outdoor Hemisferio Sur</span>
+            <span class="font-mono text-[11px] text-[#5c6f56] font-semibold">Buenos Aires / Argentina</span>
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
-            <div class="rounded-xl bg-neutral-900 border border-white/[0.06] p-2">
-              <span class="text-[9px] uppercase font-bold text-neutral-400 block">Sept / Oct</span>
-              <strong class="text-white text-xs block">🌱 Germinación</strong>
+            <div class="rounded-xl bg-[#edf2e2] border border-[#2d4123]/10 p-2">
+              <span class="text-[9px] uppercase font-bold text-[#5c6f56] block">Sept / Oct</span>
+              <strong class="text-[#121e10] text-xs block font-bold">🌱 Germinación</strong>
             </div>
-            <div class="rounded-xl bg-neutral-900 border border-white/[0.06] p-2">
-              <span class="text-[9px] uppercase font-bold text-neutral-400 block">Nov – Ene</span>
-              <strong class="text-white text-xs block">🌿 Vegetativo</strong>
+            <div class="rounded-xl bg-[#edf2e2] border border-[#2d4123]/10 p-2">
+              <span class="text-[9px] uppercase font-bold text-[#5c6f56] block">Nov – Ene</span>
+              <strong class="text-[#121e10] text-xs block font-bold">🌿 Vegetativo</strong>
             </div>
-            <div class="rounded-xl bg-neutral-900 border border-white/[0.06] p-2">
-              <span class="text-[9px] uppercase font-bold text-neutral-400 block">Febrero</span>
-              <strong class="text-white text-xs block">⚡ Pre-flora</strong>
+            <div class="rounded-xl bg-[#edf2e2] border border-[#2d4123]/10 p-2">
+              <span class="text-[9px] uppercase font-bold text-[#5c6f56] block">Febrero</span>
+              <strong class="text-[#121e10] text-xs block font-bold">⚡ Pre-flora</strong>
             </div>
-            <div class="rounded-xl bg-neutral-900 border border-white/[0.06] p-2">
-              <span class="text-[9px] uppercase font-bold text-neutral-400 block">Mar / Abr</span>
-              <strong class="text-white text-xs block">💎 Cosecha</strong>
+            <div class="rounded-xl bg-[#edf2e2] border border-[#2d4123]/10 p-2">
+              <span class="text-[9px] uppercase font-bold text-[#5c6f56] block">Mar / Abr</span>
+              <strong class="text-[#121e10] text-xs block font-bold">💎 Cosecha</strong>
             </div>
           </div>
         </div>
       `;
     } else {
       cont.innerHTML = `
-        <div class="ios-card p-3.5 text-xs space-y-1 text-neutral-300">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">Modo Indoor (Semanas)</span>
+        <div class="ios-card p-3.5 text-xs space-y-1 text-[#384933]">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-[#121e10] block">Modo Indoor (Semanas)</span>
           <p>Fotoperíodo <strong>18/6</strong> para crecimiento vegetativo y <strong>12/12</strong> para inducir y sostener la floración.</p>
         </div>
       `;
@@ -2005,10 +2050,10 @@ const CalculatorModule = {
       return `
         <button type="button" data-brand="${k}"
           class="rounded-xl border p-2.5 text-left transition ${
-            active ? 'border-white bg-white text-black font-bold' : 'border-white/[0.08] bg-neutral-900 text-neutral-400 hover:text-white'
+            active ? 'border-[#182e14] bg-[#182e14] text-white font-bold shadow-sm' : 'border-[#2d4123]/15 bg-[#edf2e2] text-[#384933] hover:text-[#121e10]'
           }">
-          <div class="text-xs leading-tight">${b.name}</div>
-          <div class="text-[10px] opacity-75">${b.type}</div>
+          <div class="text-xs leading-tight font-bold">${b.name}</div>
+          <div class="text-[10px] opacity-80 font-medium">${b.type}</div>
         </button>
       `;
     }).join('');
@@ -2021,16 +2066,16 @@ const CalculatorModule = {
     const rows = brandData.products.filter((p) => p.doses[this.stage] > 0);
 
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-neutral-500">Sin productos para esta etapa.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-[#5c6f56] italic">Sin productos para esta etapa.</td></tr>`;
     } else {
       tbody.innerHTML = rows.map((p) => {
         const dose = p.doses[this.stage];
         const total = (dose * this.liters).toFixed(1);
         return `
-          <tr class="hover:bg-white/[0.02]">
-            <td class="py-2 pr-2 text-white font-medium">${p.name} <span class="text-[10px] text-neutral-500 block">${p.role}</span></td>
-            <td class="py-2 px-2 text-right font-mono text-neutral-400">${dose} ${p.unit}/L</td>
-            <td class="py-2 pl-2 text-right font-mono font-bold text-white">${total} ${p.unit}</td>
+          <tr class="hover:bg-[#2d4123]/5">
+            <td class="py-2 pr-2 text-[#121e10] font-bold">${p.name} <span class="text-[10px] text-[#5c6f56] block font-normal">${p.role}</span></td>
+            <td class="py-2 px-2 text-right font-mono text-[#384933] font-semibold">${dose} ${p.unit}/L</td>
+            <td class="py-2 pl-2 text-right font-mono font-bold text-[#182e14]">${total} ${p.unit}</td>
           </tr>
         `;
       }).join('');
@@ -2084,8 +2129,8 @@ const LunarModule = {
   render() {
     $('lunar-hero-svg').innerHTML = `
       <svg viewBox="0 0 100 100" class="h-16 w-16">
-        <circle cx="50" cy="50" r="44" fill="#141416" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-        <path d="M 50 6 A 44 44 0 0 0 50 94 A 12 44 0 0 1 50 6" fill="#ffffff"/>
+        <circle cx="50" cy="50" r="44" fill="#ffffff" stroke="rgba(45,65,35,0.2)" stroke-width="2"/>
+        <path d="M 50 6 A 44 44 0 0 0 50 94 A 12 44 0 0 1 50 6" fill="#182e14"/>
       </svg>
     `;
 
@@ -2094,25 +2139,25 @@ const LunarModule = {
 
     $('lunar-day-recommendation').innerHTML = `
       <span class="badge-mono text-[10px]">Labores recomendadas</span>
-      <p class="text-white font-semibold text-xs mt-1">Podas, Trasplantes y Esquejes</p>
-      <p class="text-neutral-400 text-[11px] mt-0.5">La savia desciende: menor estrés por herida y cicatrización celular rápida.</p>
+      <p class="text-[#121e10] font-bold text-xs mt-1">Podas, Trasplantes y Esquejes</p>
+      <p class="text-[#384933] text-[11px] mt-0.5">La savia desciende: menor estrés por herida y cicatrización celular rápida.</p>
     `;
 
     $('lunar-task-cards').innerHTML = `
       <div class="ios-card p-3 space-y-1 text-xs">
-        <span class="text-white font-bold">🌱 Creciente / Llena</span>
-        <p class="text-neutral-300">Germinación &amp; Foliares</p>
-        <p class="text-[11px] text-neutral-500">Savia en ramas y hojas.</p>
+        <span class="text-[#121e10] font-bold">🌱 Creciente / Llena</span>
+        <p class="text-[#384933] font-medium">Germinación &amp; Foliares</p>
+        <p class="text-[11px] text-[#5c6f56]">Savia en ramas y hojas.</p>
       </div>
-      <div class="ios-card p-3 space-y-1 text-xs border-white/20">
-        <span class="text-white font-bold">✂️ Cuarto Menguante</span>
-        <p class="text-neutral-300">Podas &amp; Trasplantes</p>
-        <p class="text-[11px] text-neutral-500">Savia en raíces.</p>
+      <div class="ios-card p-3 space-y-1 text-xs border-[#2d4123]/25 bg-[#f9fbf5]">
+        <span class="text-[#121e10] font-bold">✂️ Cuarto Menguante</span>
+        <p class="text-[#384933] font-medium">Podas &amp; Trasplantes</p>
+        <p class="text-[11px] text-[#5c6f56]">Savia en raíces.</p>
       </div>
       <div class="ios-card p-3 space-y-1 text-xs">
-        <span class="text-white font-bold">🌾 Luna Nueva</span>
-        <p class="text-neutral-300">Cosecha &amp; Reposo</p>
-        <p class="text-[11px] text-neutral-500">Menor humedad interna.</p>
+        <span class="text-[#121e10] font-bold">🌾 Luna Nueva</span>
+        <p class="text-[#384933] font-medium">Cosecha &amp; Reposo</p>
+        <p class="text-[11px] text-[#5c6f56]">Menor humedad interna.</p>
       </div>
     `;
 
@@ -2125,9 +2170,9 @@ const LunarModule = {
     for (let d = 1; d <= daysInMonth; d++) {
       const isKey = d === 9 || d === 17 || d === 24;
       cells += `
-        <div class="ios-card p-1 text-center min-h-[2.8rem] flex flex-col justify-between ${isKey ? 'border-white/30 bg-white/5' : ''}">
-          <span class="text-[11px] font-mono font-medium text-neutral-300">${d}</span>
-          <span class="text-[9px] text-white">${d === 9 ? '🌑' : d === 17 ? '🌓' : d === 24 ? '🌕' : '·'}</span>
+        <div class="ios-card p-1 text-center min-h-[2.8rem] flex flex-col justify-between ${isKey ? 'border-[#182e14] bg-[#edf2e2]' : ''}">
+          <span class="text-[11px] font-mono font-bold text-[#121e10]">${d}</span>
+          <span class="text-[9px] text-[#121e10]">${d === 9 ? '🌑' : d === 17 ? '🌓' : d === 24 ? '🌕' : '·'}</span>
         </div>
       `;
     }
@@ -2202,33 +2247,33 @@ const DiagnosticModule = {
             <!-- Cabecera de la Ficha -->
             <div class="px-4 pt-1 space-y-1">
               <div class="flex items-center justify-between gap-2">
-                <span class="${diag.badgeClass} text-[10px] !py-0.5 !px-2">${diag.severity}</span>
-                <span class="text-[10px] font-mono text-neutral-400 capitalize">${diag.category}</span>
+                <span class="${diag.badgeClass} text-[10px] !py-0.5 !px-2.5 rounded-full">${diag.severity}</span>
+                <span class="text-[10px] font-mono text-[#5c6f56] font-bold capitalize">${diag.category}</span>
               </div>
-              <h3 class="text-base font-bold text-white tracking-tight">${esc(diag.title)}</h3>
-              <p class="text-[11px] text-neutral-400 flex items-center gap-1">
+              <h3 class="text-base font-bold text-[#121e10] tracking-tight">${esc(diag.title)}</h3>
+              <p class="text-[11px] text-[#5c6f56] flex items-center gap-1 font-medium">
                 <span>📍</span>
                 <span>${esc(diag.location)}</span>
               </p>
             </div>
 
             <!-- Síntomas & Diagnóstico Agronómico -->
-            <div class="px-4 text-xs space-y-2 text-neutral-300">
-              <p class="leading-relaxed text-[11px] text-neutral-300">${esc(diag.symptoms)}</p>
-              <div class="rounded-xl bg-neutral-950 p-2.5 border border-white/[0.04] space-y-1 text-[11px]">
-                <strong class="text-white block text-[10px] uppercase tracking-wider">Causa Principal:</strong>
-                <p class="text-neutral-400 leading-snug">${esc(diag.causes)}</p>
+            <div class="px-4 text-xs space-y-2 text-[#384933]">
+              <p class="leading-relaxed text-[11px] text-[#384933] font-medium">${esc(diag.symptoms)}</p>
+              <div class="rounded-xl bg-[#edf2e2] p-2.5 border border-[#2d4123]/10 space-y-1 text-[11px]">
+                <strong class="text-[#121e10] block text-[10px] uppercase font-bold tracking-wider">Causa Principal:</strong>
+                <p class="text-[#384933] leading-snug">${esc(diag.causes)}</p>
               </div>
-              <div class="rounded-xl bg-neutral-900 border border-white/[0.08] p-2.5 space-y-1 text-[11px]">
-                <strong class="text-white block text-[10px] uppercase tracking-wider">Protocolo de Corrección:</strong>
-                <p class="text-neutral-300 whitespace-pre-line leading-relaxed">${esc(diag.solution)}</p>
+              <div class="rounded-xl bg-[#edf2e2] border border-[#2d4123]/15 p-2.5 space-y-1 text-[11px]">
+                <strong class="text-[#121e10] block text-[10px] uppercase font-bold tracking-wider">Protocolo de Corrección:</strong>
+                <p class="text-[#121e10] whitespace-pre-line leading-relaxed font-medium">${esc(diag.solution)}</p>
               </div>
             </div>
           </div>
 
           <!-- Botón de Asignación a Planta Activa -->
-          <div class="p-4 pt-3 border-t border-white/[0.06] mt-3">
-            <button type="button" class="ios-btn ios-btn-secondary w-full text-xs !py-2"
+          <div class="p-4 pt-3 border-t border-[#2d4123]/10 mt-3">
+            <button type="button" class="ios-btn ios-btn-secondary w-full text-xs !py-2 font-bold"
               onclick="DiagnosticModule.assignToActivePlant('${diag.id}')">
               <span>Asignar diagnóstico a mi planta</span>
             </button>
@@ -2283,8 +2328,8 @@ const DiagnosticModule = {
         <div class="flex items-center justify-between gap-3">
           <div>
             <span class="badge-mono text-[10px]">Prevención Activa MIP</span>
-            <h3 class="text-base font-bold text-white mt-1">Rutina biológica cada ${interval} días</h3>
-            <p class="text-xs text-neutral-400">Pulverizar con pulverizador de ${liters} L al caer el sol o al apagar las luces.</p>
+            <h3 class="text-base font-bold text-[#121e10] mt-1">Rutina biológica cada ${interval} días</h3>
+            <p class="text-xs text-[#5c6f56]">Pulverizar con pulverizador de ${liters} L al caer el sol o al apagar las luces.</p>
           </div>
           <span class="text-2xl">🛡️</span>
         </div>
@@ -2295,29 +2340,29 @@ const DiagnosticModule = {
       $('pest-biocontrol-cards').innerHTML = `
         <div class="ios-card p-4 space-y-2 text-xs">
           <div class="flex items-center justify-between">
-            <strong class="text-white text-sm">🌿 Aceite de Neem + Jabón Potásico</strong>
+            <strong class="text-[#121e10] text-sm font-bold">🌿 Aceite de Neem + Jabón Potásico</strong>
             <span class="badge-mono text-[10px]">Vegetativo</span>
           </div>
-          <p class="text-neutral-400">Dosis para tu pulverizador de <strong>${liters} L</strong>:</p>
+          <p class="text-[#5c6f56]">Dosis para tu pulverizador de <strong>${liters} L</strong>:</p>
           <div class="flex gap-2 font-mono">
-            <span class="badge-mono text-white">${(2 * liters).toFixed(1)} ml Neem</span>
-            <span class="badge-mono text-white">${(5 * liters).toFixed(1)} ml Jabón Potásico</span>
+            <span class="badge-mono text-[#121e10] font-bold">${(2 * liters).toFixed(1)} ml Neem</span>
+            <span class="badge-mono text-[#121e10] font-bold">${(5 * liters).toFixed(1)} ml Jabón Potásico</span>
           </div>
-          <p class="text-neutral-400 text-[11px] mt-1 leading-relaxed">
+          <p class="text-[#384933] text-[11px] mt-1 leading-relaxed">
             Emulsionar primero el jabón potásico en agua tibia y luego incorporar el neem. Aplicar en haz y envés de las hojas. Previene trips, arañuela y mosca blanca.
           </p>
         </div>
 
         <div class="ios-card p-4 space-y-2 text-xs">
           <div class="flex items-center justify-between">
-            <strong class="text-white text-sm">🐛 Bacillus thuringiensis (Bt)</strong>
+            <strong class="text-[#121e10] text-sm font-bold">🐛 Bacillus thuringiensis (Bt)</strong>
             <span class="badge-mono text-[10px]">Floración Outdoor</span>
           </div>
-          <p class="text-neutral-400">Dosis para tu pulverizador de <strong>${liters} L</strong>:</p>
+          <p class="text-[#5c6f56]">Dosis para tu pulverizador de <strong>${liters} L</strong>:</p>
           <div class="font-mono">
-            <span class="badge-mono text-white">${(1 * liters).toFixed(1)} g Bt en polvo</span>
+            <span class="badge-mono text-[#121e10] font-bold">${(1 * liters).toFixed(1)} g Bt en polvo</span>
           </div>
-          <p class="text-neutral-400 text-[11px] mt-1 leading-relaxed">
+          <p class="text-[#384933] text-[11px] mt-1 leading-relaxed">
             Bacteria benéfica que actúa por ingestión contra orugas e isocas. Vital en exterior para evitar que las orugas perforen los cogollos y causen pudrición (botrytis).
           </p>
         </div>
@@ -2333,15 +2378,15 @@ const DiagnosticModule = {
       return `
         <div class="ios-card p-4 space-y-3 flex flex-col justify-between">
           <div class="space-y-2">
-            <div class="rounded-xl bg-neutral-950 p-2 border border-white/[0.04]">
+            <div class="rounded-xl bg-[#edf2e2] p-2 border border-[#2d4123]/10">
               ${t.svg}
             </div>
             <div>
-              <span class="${t.badgeClass} text-[10px] !py-0.5 !px-2">${t.status}</span>
-              <h4 class="text-sm font-bold text-white mt-1">${t.title}</h4>
-              <p class="text-[11px] text-neutral-400 mt-0.5">${t.desc}</p>
+              <span class="${t.badgeClass} text-[10px] !py-0.5 !px-2.5 rounded-full font-bold">${t.status}</span>
+              <h4 class="text-sm font-bold text-[#121e10] mt-1">${t.title}</h4>
+              <p class="text-[11px] text-[#5c6f56] mt-0.5 font-medium">${t.desc}</p>
             </div>
-            <p class="text-[11px] text-neutral-300 leading-relaxed">${t.effect}</p>
+            <p class="text-[11px] text-[#384933] leading-relaxed font-medium">${t.effect}</p>
           </div>
         </div>
       `;
@@ -2385,10 +2430,12 @@ const BackupModule = {
       }
     });
 
-    $('btn-reset-app')?.addEventListener('click', () => {
-      if (!confirm('¿Restablecer todo a valores de fábrica? Se borrarán tus plantas locales.')) return;
+    $('btn-reset-app')?.addEventListener('click', async () => {
+      if (!confirm('¿Restablecer todo a valores de fábrica? Se borrarán tus datos locales.')) return;
       localStorage.clear();
-      indexedDB.deleteDatabase(DB_NAME);
+      if (window.indexedDB) {
+        indexedDB.deleteDatabase(DB_NAME);
+      }
       location.reload();
     });
 
@@ -2431,26 +2478,28 @@ const BackupModule = {
     canvas.height = 1000;
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = '#0a0a0c';
+    // Fondo verde amarillento claro blancuzco
+    ctx.fillStyle = '#f4f6ec';
     ctx.fillRect(0, 0, 800, 1000);
 
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#121e10';
     ctx.font = 'bold 28px -apple-system, sans-serif';
     ctx.fillText('CannaSur — Resumen de Bitácora & Cultivo', 40, 60);
 
-    ctx.fillStyle = '#a1a1aa';
+    ctx.fillStyle = '#5c6f56';
     ctx.font = '15px monospace';
     ctx.fillText(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, 40, 95);
 
-    ctx.fillStyle = '#141416';
+    // Tarjeta 1
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(40, 120, 720, 200);
 
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#121e10';
     ctx.font = 'bold 20px -apple-system, sans-serif';
     ctx.fillText('🌱 Plantas en Seguimiento:', 60, 160);
 
     ctx.font = '15px -apple-system, sans-serif';
-    ctx.fillStyle = '#d4d4d8';
+    ctx.fillStyle = '#384933';
     let y = 195;
     GrowlogsModule.plants.slice(0, 4).forEach((p) => {
       const days = daysDiff(p.germDate, todayDateStr());
@@ -2459,13 +2508,14 @@ const BackupModule = {
       y += 28;
     });
 
-    ctx.fillStyle = '#141416';
-    ctx.fillRect(40, 350, 720, 220);
+    // Tarjeta 2
     ctx.fillStyle = '#ffffff';
+    ctx.fillRect(40, 350, 720, 220);
+    ctx.fillStyle = '#121e10';
     ctx.font = 'bold 20px -apple-system, sans-serif';
     ctx.fillText('💧 Riego y Nutrición Calculada:', 60, 390);
 
-    ctx.fillStyle = '#d4d4d8';
+    ctx.fillStyle = '#384933';
     ctx.font = '15px -apple-system, sans-serif';
     ctx.fillText(`Línea: ${BRANDS[CalculatorModule.brand].name} · Etapa: ${STAGES[CalculatorModule.stage].label}`, 60, 425);
     ctx.fillText(`Volumen: ${CalculatorModule.liters} Litros`, 60, 455);

@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="es-AR" class="dark">
+<html lang="es-AR" class="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#000000" />
+  <meta name="theme-color" content="#f4f6ec" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="description" content="Bitácora de cultivo de cannabis y notas de jardín. Minimalista, offline y orgánica." />
   <title>CannaSur — Bitácora de Cultivo</title>
 
-  <!-- Tipografía Apple System / Plus Jakarta Sans -->
+  <!-- Tipografía Apple System / Plus Jakarta Sans / Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -22,15 +22,8 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', '"Plus Jakarta Sans"', 'sans-serif'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', '"Plus Jakarta Sans"', '"Inter"', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace']
-          },
-          colors: {
-            neutral: {
-              850: '#1f1f23',
-              900: '#141416',
-              950: '#0a0a0c'
-            }
           }
         }
       }
@@ -40,31 +33,38 @@
   <!-- jsPDF para exportar reportes -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 
-  <!-- Estilos Apple-Like Minimalistas -->
+  <!-- Estilos Apple-Like Minimalistas & Paleta Botánica Clara -->
   <link rel="stylesheet" href="./styles.css" />
 </head>
-<body class="bg-black text-white antialiased selection:bg-white selection:text-black">
+<body class="bg-[#f4f6ec] text-[#121e10] antialiased selection:bg-[#182e14] selection:text-[#ffffff]">
 
   <!-- =====================================================================
-       TOP APP BAR (Estilo iOS Translucent)
+       TOP APP BAR (Estilo iOS Translucent con fondo verde claro blancuzco)
        ===================================================================== -->
-  <header class="sticky top-0 z-30 border-b border-white/[0.06] bg-black/80 backdrop-blur-xl">
+  <header class="sticky top-0 z-30 border-b border-[#2d4123]/10 bg-[#f4f6ec]/92 backdrop-blur-xl">
     <div class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
       <!-- Título de la App -->
       <div class="flex items-center gap-2.5">
-        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-black font-extrabold text-sm shadow-sm">
+        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-[#182e14] text-white font-extrabold text-sm shadow-sm">
           🌱
         </div>
         <div>
-          <h1 class="text-base font-bold tracking-tight text-white leading-tight">
+          <h1 class="text-base font-bold tracking-tight text-[#121e10] leading-tight">
             CannaSur
           </h1>
-          <p id="top-bar-subtext" class="text-[11px] text-neutral-400">Bitácora de Plantas</p>
+          <p id="top-bar-subtext" class="text-[11px] text-[#5c6f56]">Bitácora de Plantas</p>
         </div>
       </div>
 
       <!-- Acciones de Cabecera -->
       <div class="flex items-center gap-1.5 sm:gap-2">
+        <!-- Botón Reiniciar con Datos de Ejemplo -->
+        <button id="btn-top-reset-demo" type="button"
+          class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-2.5 !min-h-[2.1rem]" title="Cargar cultivo de ejemplo cuando quieras">
+          <span>🔄</span>
+          <span class="hidden sm:inline text-[11px]">Ejemplo</span>
+        </button>
+
         <button id="btn-toggle-notifications" type="button"
           class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-2.5 !min-h-[2.1rem]" title="Recordatorios y alertas de cultivo">
           <span id="notif-bell-icon">🔔</span>
@@ -101,15 +101,15 @@
         <!-- Encabezado Amigable -->
         <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pt-1">
           <div>
-            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Mi Jardín</h2>
-            <p class="text-xs text-neutral-400 mt-0.5">Seguimiento individual, notas diarias y recordatorios de cultivo.</p>
+            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#121e10]">Mi Jardín</h2>
+            <p class="text-xs text-[#5c6f56] mt-0.5 font-medium">Seguimiento individual, notas diarias y recordatorios de cultivo.</p>
           </div>
 
           <!-- Métricas Resumen -->
           <div class="flex items-center gap-2 text-xs">
-            <span class="badge-mono"><strong id="stat-total-plants" class="font-mono">0</strong> plantas</span>
-            <span class="badge-mono"><strong id="stat-veg-plants" class="font-mono text-neutral-300">0</strong> veg</span>
-            <span class="badge-mono"><strong id="stat-flower-plants" class="font-mono text-neutral-300">0</strong> flora</span>
+            <span class="badge-mono"><strong id="stat-total-plants" class="font-mono text-[#121e10]">0</strong> plantas</span>
+            <span class="badge-mono"><strong id="stat-veg-plants" class="font-mono text-[#384933]">0</strong> veg</span>
+            <span class="badge-mono"><strong id="stat-flower-plants" class="font-mono text-[#384933]">0</strong> flora</span>
           </div>
         </div>
 
@@ -119,21 +119,21 @@
         <div id="reminders-hub" class="ios-reminder-card p-4 space-y-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-white/10 text-xs">🔔</span>
-              <h3 class="text-sm font-bold text-white tracking-tight">Recordatorios del Ciclo</h3>
+              <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-[#eaf0df] text-xs">🔔</span>
+              <h3 class="text-sm font-bold text-[#121e10] tracking-tight">Recordatorios del Ciclo</h3>
               <span id="reminders-count-badge" class="badge-mono text-[10px] !py-0.5">0 hoy</span>
             </div>
-            <button id="btn-toggle-cycle-schedule" type="button" class="text-[11px] text-neutral-400 hover:text-white font-medium transition flex items-center gap-1">
+            <button id="btn-toggle-cycle-schedule" type="button" class="text-[11px] text-[#384933] hover:text-[#121e10] font-semibold transition flex items-center gap-1">
               <span id="cycle-schedule-btn-text">Cronograma completo</span>
               <span id="cycle-schedule-arrow">▾</span>
             </button>
           </div>
 
           <!-- Banner Permiso Notificaciones Web (Sutil) -->
-          <div id="web-notif-permission-banner" class="hidden rounded-xl bg-neutral-900 border border-white/10 p-2.5 flex items-center justify-between text-xs">
+          <div id="web-notif-permission-banner" class="hidden rounded-xl bg-[#f0f4e6] border border-[#2d4123]/15 p-2.5 flex items-center justify-between text-xs">
             <div class="flex items-center gap-2">
               <span>📲</span>
-              <span class="text-neutral-300 text-[11px]">Activa notificaciones para no olvidar riegos ni nutrientes.</span>
+              <span class="text-[#384933] text-[11px] font-medium">Activa notificaciones para no olvidar riegos ni nutrientes.</span>
             </div>
             <button type="button" id="btn-enable-web-notif" class="ios-btn ios-btn-primary text-[10px] !py-1 !px-2.5 !min-h-[1.75rem]">
               Activar
@@ -146,10 +146,10 @@
           </div>
 
           <!-- Cronograma Completo Desplegable -->
-          <div id="cycle-schedule-dropdown" class="hidden border-t border-white/[0.08] pt-3 space-y-2.5">
-            <div class="flex items-center justify-between text-[11px] text-neutral-400">
+          <div id="cycle-schedule-dropdown" class="hidden border-t border-[#2d4123]/10 pt-3 space-y-2.5">
+            <div class="flex items-center justify-between text-[11px] text-[#5c6f56]">
               <span class="uppercase tracking-wider font-semibold text-[10px]">Procedimientos programados hasta cosecha</span>
-              <span id="cycle-plant-selected-name" class="font-bold text-white"></span>
+              <span id="cycle-plant-selected-name" class="font-bold text-[#121e10]"></span>
             </div>
             <div id="cycle-schedule-timeline" class="space-y-2 text-xs max-h-64 overflow-y-auto pr-1"></div>
           </div>
@@ -170,21 +170,21 @@
 
         <!-- Estado Vacío Cálido y Amigable -->
         <div id="plants-empty-state" class="hidden ios-card p-8 sm:p-10 text-center space-y-4">
-          <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-900 border border-white/10 text-3xl">
+          <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#edf2e2] border border-[#2d4123]/15 text-3xl">
             🌱
           </div>
           <div class="space-y-1">
-            <h3 class="text-lg font-bold text-white">Tu jardín está listo</h3>
-            <p class="text-xs text-neutral-400 max-w-sm mx-auto leading-relaxed">
-              Cuidar una planta es un arte diario. Registrá tu primera planta para empezar a llevar su bitácora de riegos, notas y fotos.
+            <h3 class="text-lg font-bold text-[#121e10]">Tu jardín está listo</h3>
+            <p class="text-xs text-[#5c6f56] max-w-sm mx-auto leading-relaxed">
+              Cuidar una planta es un arte diario. Podés cargar un cultivo de ejemplo completo o registrar tu primera planta.
             </p>
           </div>
           <div class="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
-            <button type="button" id="btn-empty-add-plant" class="ios-btn ios-btn-primary text-xs w-full sm:w-auto">
-              + Añadir Primera Planta
+            <button type="button" id="btn-load-demo-plant" class="ios-btn ios-btn-primary text-xs w-full sm:w-auto">
+              🔄 Cargar Cultivo de Ejemplo
             </button>
-            <button type="button" id="btn-load-demo-plant" class="ios-btn ios-btn-secondary text-xs w-full sm:w-auto">
-              Ver Planta de Ejemplo
+            <button type="button" id="btn-empty-add-plant" class="ios-btn ios-btn-secondary text-xs w-full sm:w-auto">
+              + Añadir Primera Planta
             </button>
           </div>
         </div>
@@ -193,7 +193,7 @@
       <!-- SUBVISTA B: DIARIO DE PLANTA & TIMELINE (APPLE JOURNAL VIEW) -->
       <div id="growlogs-detail-container" class="hidden space-y-4">
         <!-- Navegación Superior -->
-        <div class="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-3">
+        <div class="flex items-center justify-between gap-2 border-b border-[#2d4123]/10 pb-3">
           <button id="btn-back-to-plants" type="button" class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.1rem]">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 18-6-6 6-6"/></svg>
             <span>Mi Jardín</span>
@@ -203,7 +203,7 @@
             <button id="btn-edit-plant-info" type="button" class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-3 !min-h-[2.1rem]">
               <span>Editar</span>
             </button>
-            <button id="btn-delete-plant" type="button" class="text-neutral-500 hover:text-red-400 p-1.5 rounded-lg transition" title="Eliminar planta">
+            <button id="btn-delete-plant" type="button" class="text-[#5c6f56] hover:text-red-600 p-1.5 rounded-lg transition" title="Eliminar planta">
               <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
             </button>
           </div>
@@ -217,31 +217,31 @@
         <!-- Barra de Entrada Rápida (Estilo "Escribir Nota...") -->
         <div class="ios-card p-3.5 space-y-3">
           <button type="button" id="btn-open-full-log"
-            class="w-full flex items-center justify-between rounded-xl bg-neutral-900 border border-white/10 px-4 py-3 text-left text-xs text-neutral-400 hover:text-white hover:border-white/20 transition">
+            class="w-full flex items-center justify-between rounded-xl bg-[#edf2e2] border border-[#2d4123]/15 px-4 py-3 text-left text-xs text-[#384933] hover:text-[#121e10] hover:border-[#2d4123]/30 transition">
             <span class="flex items-center gap-2">
               <span class="text-base">✍️</span>
-              <span class="font-medium">¿Cómo amaneció hoy? Escribir entrada o nota...</span>
+              <span class="font-semibold text-xs">¿Cómo amaneció hoy? Escribir entrada o nota...</span>
             </span>
-            <span class="text-white font-bold text-sm">+</span>
+            <span class="text-[#121e10] font-bold text-sm">+</span>
           </button>
 
           <!-- Botones Táctiles de Registro Rápido (1-Tap) -->
           <div class="grid grid-cols-4 gap-1.5">
-            <button type="button" data-quick-log="riego_agua" class="ios-card p-2 text-center text-xs hover:border-white/30 transition">
+            <button type="button" data-quick-log="riego_agua" class="ios-card p-2 text-center text-xs hover:border-[#2d4123]/30 transition">
               <span class="text-base block mb-0.5">💧</span>
-              <span class="font-semibold text-[11px] text-neutral-300">Riego</span>
+              <span class="font-semibold text-[11px] text-[#121e10]">Riego</span>
             </button>
-            <button type="button" data-quick-log="riego_nutrientes" class="ios-card p-2 text-center text-xs hover:border-white/30 transition">
+            <button type="button" data-quick-log="riego_nutrientes" class="ios-card p-2 text-center text-xs hover:border-[#2d4123]/30 transition">
               <span class="text-base block mb-0.5">🧪</span>
-              <span class="font-semibold text-[11px] text-neutral-300">Nutrientes</span>
+              <span class="font-semibold text-[11px] text-[#121e10]">Nutrientes</span>
             </button>
-            <button type="button" data-quick-log="foliar" class="ios-card p-2 text-center text-xs hover:border-white/30 transition">
+            <button type="button" data-quick-log="foliar" class="ios-card p-2 text-center text-xs hover:border-[#2d4123]/30 transition">
               <span class="text-base block mb-0.5">🌿</span>
-              <span class="font-semibold text-[11px] text-neutral-300">Foliar</span>
+              <span class="font-semibold text-[11px] text-[#121e10]">Foliar</span>
             </button>
-            <button type="button" data-quick-log="poda" class="ios-card p-2 text-center text-xs hover:border-white/30 transition">
+            <button type="button" data-quick-log="poda" class="ios-card p-2 text-center text-xs hover:border-[#2d4123]/30 transition">
               <span class="text-base block mb-0.5">✂️</span>
-              <span class="font-semibold text-[11px] text-neutral-300">Poda</span>
+              <span class="font-semibold text-[11px] text-[#121e10]">Poda</span>
             </button>
           </div>
         </div>
@@ -255,7 +255,7 @@
             <button type="button" data-timeline-filter="manejo" class="badge-mono cursor-pointer">✂️ Manejo</button>
             <button type="button" data-timeline-filter="fotos" class="badge-mono cursor-pointer">📷 Fotos</button>
           </div>
-          <span id="timeline-count-badge" class="font-mono text-[11px] text-neutral-500 shrink-0">0 notas</span>
+          <span id="timeline-count-badge" class="font-mono text-[11px] text-[#5c6f56] font-semibold shrink-0">0 notas</span>
         </div>
 
         <!-- Entradas de la Bitácora (Journal Timeline) -->
@@ -266,8 +266,8 @@
         <!-- Diario Vacío -->
         <div id="timeline-empty-state" class="hidden ios-card p-8 text-center space-y-2">
           <span class="text-2xl block">📓</span>
-          <p class="text-sm font-bold text-white">No hay notas registradas todavía</p>
-          <p class="text-xs text-neutral-400 max-w-xs mx-auto">Usá los botones de arriba para anotar un riego, aplicación foliar o sacar una foto de hoy.</p>
+          <p class="text-sm font-bold text-[#121e10]">No hay notas registradas todavía</p>
+          <p class="text-xs text-[#5c6f56] max-w-xs mx-auto">Usá los botones de arriba para anotar un riego, aplicación foliar o sacar una foto de hoy.</p>
         </div>
       </div>
 
@@ -278,8 +278,8 @@
          =================================================================== -->
     <section id="view-calculadora" class="app-view space-y-4" aria-label="Riego y Nutrición">
       <div class="space-y-1">
-        <h2 class="text-2xl font-extrabold tracking-tight text-white">Riego &amp; Nutrición</h2>
-        <p class="text-xs text-neutral-400">Calculá los mililitros exactos de cada producto para mezclar en tu agua.</p>
+        <h2 class="text-2xl font-extrabold tracking-tight text-[#121e10]">Riego &amp; Nutrición</h2>
+        <p class="text-xs text-[#5c6f56] font-medium">Calculá los mililitros exactos de cada producto para mezclar en tu agua.</p>
       </div>
 
       <!-- Segmented Mode: Outdoor vs Indoor -->
@@ -294,40 +294,40 @@
       <div class="ios-card p-4 sm:p-5 space-y-4">
 
         <!-- Estimador de Riego Promedio según Maceta (Regla 10% - 15%) -->
-        <div class="rounded-xl border border-white/[0.08] bg-neutral-950 p-3.5 space-y-2.5">
+        <div class="rounded-xl border border-[#2d4123]/15 bg-[#edf2e2] p-3.5 space-y-2.5">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
+            <span class="text-xs font-bold text-[#121e10] flex items-center gap-1.5">
               <span>🪴</span>
               <span>Calcular Riego según Tamaño de Maceta</span>
             </span>
-            <span class="text-[10px] uppercase font-bold text-neutral-400">Regla 10%–15%</span>
+            <span class="text-[10px] uppercase font-bold text-[#384933]">Regla 10%–15%</span>
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <div>
-              <label for="calc-pot-size" class="block text-[10px] text-neutral-400 uppercase font-semibold mb-1">Maceta (Litros)</label>
+              <label for="calc-pot-size" class="block text-[10px] text-[#384933] uppercase font-bold mb-1">Maceta (Litros)</label>
               <input id="calc-pot-size" type="number" min="0.5" max="500" step="0.5" value="15" class="ios-input !h-9 text-xs font-mono w-full" />
             </div>
             <div>
-              <label for="calc-plants-qty" class="block text-[10px] text-neutral-400 uppercase font-semibold mb-1">Cant. Plantas</label>
+              <label for="calc-plants-qty" class="block text-[10px] text-[#384933] uppercase font-bold mb-1">Cant. Plantas</label>
               <input id="calc-plants-qty" type="number" min="1" max="100" step="1" value="1" class="ios-input !h-9 text-xs font-mono w-full" />
             </div>
             <div class="col-span-2 sm:col-span-1 flex flex-col justify-end">
-              <button type="button" id="btn-apply-pot-irrigation" class="ios-btn ios-btn-secondary !h-9 text-xs w-full">
+              <button type="button" id="btn-apply-pot-irrigation" class="ios-btn ios-btn-secondary !h-9 text-xs w-full font-semibold">
                 Usar en Riego
               </button>
             </div>
           </div>
-          <div class="flex items-center justify-between text-[11px] text-neutral-400 pt-0.5 border-t border-white/[0.04]">
-            <span>Riego por maceta: <strong id="calc-pot-single-vol" class="text-white font-mono">2.25 L</strong> (15%)</span>
-            <span>Total preparado: <strong id="calc-pot-total-vol" class="text-white font-mono">2.25 L</strong></span>
+          <div class="flex items-center justify-between text-[11px] text-[#384933] pt-0.5 border-t border-[#2d4123]/10">
+            <span>Riego por maceta: <strong id="calc-pot-single-vol" class="text-[#121e10] font-mono font-bold">2.25 L</strong> (15%)</span>
+            <span>Total preparado: <strong id="calc-pot-total-vol" class="text-[#121e10] font-mono font-bold">2.25 L</strong></span>
           </div>
         </div>
 
         <!-- Litros de Agua -->
         <div>
           <div class="flex items-center justify-between mb-1.5">
-            <label for="input-liters" class="text-xs font-semibold text-neutral-300 uppercase tracking-wide">Litros de Agua</label>
-            <span class="font-mono text-xs text-neutral-400">0.5 L – 500 L</span>
+            <label for="input-liters" class="text-xs font-bold text-[#121e10] uppercase tracking-wide">Litros de Agua</label>
+            <span class="font-mono text-xs text-[#5c6f56] font-semibold">0.5 L – 500 L</span>
           </div>
           <div class="flex items-center gap-2">
             <button type="button" id="btn-liters-dec" class="ios-btn ios-btn-secondary !p-0 w-12 h-11 text-lg font-bold">−</button>
@@ -337,18 +337,18 @@
           </div>
           <!-- Presets rápidos -->
           <div class="mt-2 grid grid-cols-6 gap-1" id="liters-presets">
-            <button type="button" data-liters="1" class="liter-preset-btn rounded-lg bg-neutral-900 border border-white/[0.08] py-1 text-xs font-mono text-neutral-300 hover:border-white/30">1L</button>
-            <button type="button" data-liters="2" class="liter-preset-btn rounded-lg bg-neutral-900 border border-white/[0.08] py-1 text-xs font-mono text-neutral-300 hover:border-white/30">2L</button>
-            <button type="button" data-liters="5" class="liter-preset-btn rounded-lg bg-neutral-900 border border-white/[0.08] py-1 text-xs font-mono text-neutral-300 hover:border-white/30">5L</button>
-            <button type="button" data-liters="10" class="liter-preset-btn rounded-lg bg-neutral-900 border border-white/[0.08] py-1 text-xs font-mono text-neutral-300 hover:border-white/30">10L</button>
-            <button type="button" data-liters="20" class="liter-preset-btn rounded-lg bg-neutral-900 border border-white/[0.08] py-1 text-xs font-mono text-neutral-300 hover:border-white/30">20L</button>
-            <button type="button" data-liters="50" class="liter-preset-btn rounded-lg bg-neutral-900 border border-white/[0.08] py-1 text-xs font-mono text-neutral-300 hover:border-white/30">50L</button>
+            <button type="button" data-liters="1" class="liter-preset-btn rounded-lg bg-[#edf2e2] border border-[#2d4123]/15 py-1 text-xs font-mono text-[#121e10] font-bold hover:border-[#2d4123]/40">1L</button>
+            <button type="button" data-liters="2" class="liter-preset-btn rounded-lg bg-[#edf2e2] border border-[#2d4123]/15 py-1 text-xs font-mono text-[#121e10] font-bold hover:border-[#2d4123]/40">2L</button>
+            <button type="button" data-liters="5" class="liter-preset-btn rounded-lg bg-[#edf2e2] border border-[#2d4123]/15 py-1 text-xs font-mono text-[#121e10] font-bold hover:border-[#2d4123]/40">5L</button>
+            <button type="button" data-liters="10" class="liter-preset-btn rounded-lg bg-[#edf2e2] border border-[#2d4123]/15 py-1 text-xs font-mono text-[#121e10] font-bold hover:border-[#2d4123]/40">10L</button>
+            <button type="button" data-liters="20" class="liter-preset-btn rounded-lg bg-[#edf2e2] border border-[#2d4123]/15 py-1 text-xs font-mono text-[#121e10] font-bold hover:border-[#2d4123]/40">20L</button>
+            <button type="button" data-liters="50" class="liter-preset-btn rounded-lg bg-[#edf2e2] border border-[#2d4123]/15 py-1 text-xs font-mono text-[#121e10] font-bold hover:border-[#2d4123]/40">50L</button>
           </div>
         </div>
 
         <!-- Marca de Fertilizante -->
         <div>
-          <label class="block text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-1.5">Línea Nutricional</label>
+          <label class="block text-xs font-bold text-[#121e10] uppercase tracking-wide mb-1.5">Línea Nutricional</label>
           <select id="select-brand" class="sr-only">
             <option value="topcrop">Top Crop</option>
             <option value="namaste">Namaste</option>
@@ -360,7 +360,7 @@
 
         <!-- Etapa -->
         <div>
-          <label for="select-stage" class="block text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-1.5">Etapa de la Planta</label>
+          <label for="select-stage" class="block text-xs font-bold text-[#121e10] uppercase tracking-wide mb-1.5">Etapa de la Planta</label>
           <select id="select-stage" class="ios-input w-full text-xs font-semibold">
             <option value="plantula">🌱 Plántula (Sem 1-2)</option>
             <option value="vegetativo">🌿 Vegetativo (Sem 3-6)</option>
@@ -371,32 +371,32 @@
         </div>
 
         <!-- Resultado y Tabla -->
-        <div class="rounded-xl border border-white/[0.08] bg-neutral-950 p-4 space-y-3">
-          <div class="flex items-baseline justify-between border-b border-white/[0.06] pb-2">
+        <div class="rounded-xl border border-[#2d4123]/15 bg-[#edf2e2] p-4 space-y-3">
+          <div class="flex items-baseline justify-between border-b border-[#2d4123]/10 pb-2">
             <div>
-              <h4 id="result-title" class="text-sm font-bold text-white">Receta</h4>
-              <p id="result-subtitle" class="text-[11px] text-neutral-400">Dosis exacta</p>
+              <h4 id="result-title" class="text-sm font-bold text-[#121e10]">Receta</h4>
+              <p id="result-subtitle" class="text-[11px] text-[#5c6f56] font-medium">Dosis exacta</p>
             </div>
             <div class="flex gap-2 text-xs font-mono">
-              <span class="text-neutral-400">pH: <strong id="result-ph" class="text-white">5.8 – 6.2</strong></span>
-              <span class="text-neutral-400">EC: <strong id="result-ec" class="text-white">0.8 – 1.2</strong></span>
+              <span class="text-[#384933]">pH: <strong id="result-ph" class="text-[#121e10]">5.8 – 6.2</strong></span>
+              <span class="text-[#384933]">EC: <strong id="result-ec" class="text-[#121e10]">0.8 – 1.2</strong></span>
             </div>
           </div>
 
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse">
               <thead>
-                <tr class="border-b border-white/[0.06] text-[10px] uppercase font-bold text-neutral-500">
+                <tr class="border-b border-[#2d4123]/10 text-[10px] uppercase font-bold text-[#5c6f56]">
                   <th class="py-1.5 pr-2">Producto</th>
                   <th class="py-1.5 px-2 text-right">Dosis/L</th>
-                  <th class="py-1.5 pl-2 text-right text-white">A Mezclar</th>
+                  <th class="py-1.5 pl-2 text-right text-[#121e10]">A Mezclar</th>
                 </tr>
               </thead>
-              <tbody id="fertilizer-table-body" class="divide-y divide-white/[0.04]"></tbody>
+              <tbody id="fertilizer-table-body" class="divide-y divide-[#2d4123]/10"></tbody>
             </table>
           </div>
 
-          <div id="mixing-protocol-box" class="text-[11px] text-neutral-400 leading-relaxed pt-1"></div>
+          <div id="mixing-protocol-box" class="text-[11px] text-[#384933] leading-relaxed pt-1"></div>
         </div>
 
         <!-- Botón para añadir directo al diario -->
@@ -411,8 +411,8 @@
          =================================================================== -->
     <section id="view-lunar" class="app-view space-y-4" aria-label="Calendario Lunar">
       <div class="space-y-1">
-        <h2 class="text-2xl font-extrabold tracking-tight text-white">Calendario Lunar</h2>
-        <p class="text-xs text-neutral-400">Efemérides agronómicas adaptadas al Hemisferio Sur (Argentina).</p>
+        <h2 class="text-2xl font-extrabold tracking-tight text-[#121e10]">Calendario Lunar</h2>
+        <p class="text-xs text-[#5c6f56] font-medium">Efemérides agronómicas adaptadas al Hemisferio Sur (Argentina).</p>
       </div>
 
       <!-- Hero Lunar Apple Style -->
@@ -422,11 +422,11 @@
             <div id="lunar-hero-svg" class="h-16 w-16 shrink-0 flex items-center justify-center"></div>
             <div>
               <span id="lunar-selected-date-label" class="badge-mono text-[10px]">Hoy · H.O.A.</span>
-              <h3 id="lunar-phase-title" class="text-lg font-bold text-white mt-1">Fase Lunar</h3>
-              <p id="lunar-phase-meta" class="text-xs text-neutral-400">Iluminación y ciclo</p>
+              <h3 id="lunar-phase-title" class="text-lg font-bold text-[#121e10] mt-1">Fase Lunar</h3>
+              <p id="lunar-phase-meta" class="text-xs text-[#5c6f56]">Iluminación y ciclo de savia</p>
             </div>
           </div>
-          <div id="lunar-day-recommendation" class="rounded-xl bg-neutral-900 border border-white/[0.08] p-3 text-xs max-w-sm w-full"></div>
+          <div id="lunar-day-recommendation" class="rounded-xl bg-[#edf2e2] border border-[#2d4123]/12 p-3 text-xs max-w-sm w-full"></div>
         </div>
       </div>
 
@@ -445,7 +445,7 @@
         </div>
 
         <!-- Días Semana -->
-        <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-neutral-500">
+        <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-[#5c6f56]">
           <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
         </div>
 
@@ -458,8 +458,8 @@
          =================================================================== -->
     <section id="view-plagas" class="app-view space-y-4" aria-label="Salud y Diagnóstico">
       <div class="space-y-1">
-        <h2 class="text-2xl font-extrabold tracking-tight text-white">Salud &amp; Diagnóstico</h2>
-        <p class="text-xs text-neutral-400">Guía agronómica visual de salud de la planta, deficiencias, excesos y control biológico.</p>
+        <h2 class="text-2xl font-extrabold tracking-tight text-[#121e10]">Salud &amp; Diagnóstico</h2>
+        <p class="text-xs text-[#5c6f56] font-medium">Guía agronómica visual de salud de la planta, deficiencias, excesos y control biológico.</p>
       </div>
 
       <!-- Segmented Switcher de Salud (Apple Style) -->
@@ -492,25 +492,25 @@
 
         <div class="ios-card p-4 space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-white uppercase tracking-wider">Parámetros de Pulverización</span>
-            <span class="text-[10px] text-neutral-400">Aplicar al atardecer o con luces apagadas</span>
+            <span class="text-xs font-bold text-[#121e10] uppercase tracking-wider">Parámetros de Pulverización</span>
+            <span class="text-[10px] text-[#5c6f56]">Aplicar al atardecer o con luces apagadas</span>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
             <div>
-              <label for="input-pest-last-date" class="block font-semibold text-neutral-300 mb-1">Última Aplicación</label>
-              <input id="input-pest-last-date" type="date" class="ios-input w-full font-mono text-xs [color-scheme:dark]" />
+              <label for="input-pest-last-date" class="block font-bold text-[#121e10] mb-1">Última Aplicación</label>
+              <input id="input-pest-last-date" type="date" class="ios-input w-full font-mono text-xs" />
             </div>
             <div>
-              <label for="select-pest-interval" class="block font-semibold text-neutral-300 mb-1">Intervalo</label>
-              <select id="select-pest-interval" class="ios-input w-full text-xs">
+              <label for="select-pest-interval" class="block font-bold text-[#121e10] mb-1">Intervalo</label>
+              <select id="select-pest-interval" class="ios-input w-full text-xs font-semibold">
                 <option value="10">Cada 10 días (Verano / Outdoor)</option>
                 <option value="12" selected>Cada 12 días (Recomendado)</option>
                 <option value="15">Cada 15 días (Mantenimiento)</option>
               </select>
             </div>
             <div>
-              <label for="select-sprayer-liters" class="block font-semibold text-neutral-300 mb-1">Pulverizador</label>
-              <select id="select-sprayer-liters" class="ios-input w-full text-xs font-mono">
+              <label for="select-sprayer-liters" class="block font-bold text-[#121e10] mb-1">Pulverizador</label>
+              <select id="select-sprayer-liters" class="ios-input w-full text-xs font-mono font-semibold">
                 <option value="0.5">0.5 L (Manual)</option>
                 <option value="1" selected>1.0 L (Estándar)</option>
                 <option value="1.5">1.5 L</option>
@@ -528,8 +528,8 @@
       <div id="subview-health-tricomas" class="hidden space-y-4">
         <div class="ios-card p-4 space-y-2">
           <span class="badge-mono text-[10px]">Maduración Agronómica</span>
-          <h3 class="text-base font-bold text-white">¿Cómo determinar el punto exacto de corte?</h3>
-          <p class="text-xs text-neutral-300 leading-relaxed">
+          <h3 class="text-base font-bold text-[#121e10]">¿Cómo determinar el punto exacto de corte?</h3>
+          <p class="text-xs text-[#384933] leading-relaxed">
             El color de los pistilos (pelitos) es solo una referencia inicial. La única forma precisa de saber cuándo cosechar es observar las cabezas glandulares de los tricomas con una lupa o microscopio de 60x.
           </p>
         </div>
@@ -541,15 +541,15 @@
 
         <!-- Protocolo Pre-Cosecha -->
         <div class="ios-card p-4 space-y-3 text-xs">
-          <h4 class="font-bold text-white uppercase tracking-wider text-[11px]">Protocolo agronómico pre-corte</h4>
+          <h4 class="font-bold text-[#121e10] uppercase tracking-wider text-[11px]">Protocolo agronómico pre-corte</h4>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div class="rounded-xl bg-neutral-900 border border-white/[0.06] p-3 space-y-1">
-              <strong class="text-white block">🚿 1. Lavado de raíces (Flush)</strong>
-              <p class="text-neutral-400 text-[11px]">Realizarlo 10 a 14 días antes del corte regando solo con agua sin nutrientes para que la planta consuma sus reservas y no queden sales residuales.</p>
+            <div class="rounded-xl bg-[#edf2e2] border border-[#2d4123]/10 p-3 space-y-1">
+              <strong class="text-[#121e10] block font-bold">🚿 1. Lavado de raíces (Flush)</strong>
+              <p class="text-[#384933] text-[11px] leading-relaxed">Realizarlo 10 a 14 días antes del corte regando solo con agua sin nutrientes para que la planta consuma sus reservas y no queden sales residuales.</p>
             </div>
-            <div class="rounded-xl bg-neutral-900 border border-white/[0.06] p-3 space-y-1">
-              <strong class="text-white block">🌑 2. Fase Lunar &amp; Corte</strong>
-              <p class="text-neutral-400 text-[11px]">Cosechar preferentemente en Luna Menguante o Luna Nueva antes de que salga el sol, cuando la concentración de savia en las flores es mínima.</p>
+            <div class="rounded-xl bg-[#edf2e2] border border-[#2d4123]/10 p-3 space-y-1">
+              <strong class="text-[#121e10] block font-bold">🌑 2. Fase Lunar &amp; Corte</strong>
+              <p class="text-[#384933] text-[11px] leading-relaxed">Cosechar preferentemente en Luna Menguante o Luna Nueva antes de que salga el sol, cuando la concentración de savia en las flores es mínima.</p>
             </div>
           </div>
         </div>
@@ -561,18 +561,18 @@
          =================================================================== -->
     <section id="view-config" class="app-view space-y-4" aria-label="Ajustes">
       <div class="space-y-1">
-        <h2 class="text-2xl font-extrabold tracking-tight text-white">Ajustes</h2>
-        <p class="text-xs text-neutral-400">Preferencias locales y copia de seguridad de tu bitácora.</p>
+        <h2 class="text-2xl font-extrabold tracking-tight text-[#121e10]">Ajustes</h2>
+        <p class="text-xs text-[#5c6f56] font-medium">Preferencias locales, datos de prueba y copia de seguridad.</p>
       </div>
 
       <!-- Ajustes Tipo iOS Grouped Table -->
-      <div class="ios-grouped-table divide-y divide-white/[0.06] text-xs">
+      <div class="ios-grouped-table divide-y divide-[#2d4123]/10 text-xs">
         <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <strong class="text-white block">Zona Climática</strong>
-            <span class="text-neutral-400 text-[11px]">Ajusta consejos para tu región en Argentina</span>
+            <strong class="text-[#121e10] block font-bold">Zona Climática</strong>
+            <span class="text-[#5c6f56] text-[11px]">Ajusta consejos para tu región en Argentina</span>
           </div>
-          <select id="cfg-region" class="ios-input !h-9 text-xs sm:w-60">
+          <select id="cfg-region" class="ios-input !h-9 text-xs sm:w-60 font-semibold">
             <option value="amba">Buenos Aires / AMBA / Litoral Sur</option>
             <option value="centro">Centro · Córdoba / Santa Fe</option>
             <option value="cuyo">Cuyo · Mendoza / San Juan</option>
@@ -583,10 +583,10 @@
 
         <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <strong class="text-white block">Medio de Cultivo</strong>
-            <span class="text-neutral-400 text-[11px]">Sustrato tierra o medios inertes</span>
+            <strong class="text-[#121e10] block font-bold">Medio de Cultivo</strong>
+            <span class="text-[#5c6f56] text-[11px]">Sustrato tierra o medios inertes</span>
           </div>
-          <select id="cfg-substrate" class="ios-input !h-9 text-xs sm:w-60">
+          <select id="cfg-substrate" class="ios-input !h-9 text-xs sm:w-60 font-semibold">
             <option value="sustrato">Sustrato / Tierra fértil</option>
             <option value="coco">Fibra de Coco / Hidroponía</option>
           </select>
@@ -594,10 +594,10 @@
 
         <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <strong class="text-white block">Régimen Nutricional</strong>
-            <span class="text-neutral-400 text-[11px]">Ajusta la intensidad de las recetas</span>
+            <strong class="text-[#121e10] block font-bold">Régimen Nutricional</strong>
+            <span class="text-[#5c6f56] text-[11px]">Ajusta la intensidad de las recetas</span>
           </div>
-          <select id="cfg-dose-factor" class="ios-input !h-9 text-xs sm:w-60">
+          <select id="cfg-dose-factor" class="ios-input !h-9 text-xs sm:w-60 font-semibold">
             <option value="0.75">75% — Suave (Automáticas / Sativas)</option>
             <option value="1" selected>100% — Estándar (Fabricante)</option>
             <option value="1.2">120% — Exigente (Alta potencia)</option>
@@ -606,13 +606,29 @@
       </div>
 
       <!-- Consejo Regional -->
-      <div id="cfg-regional-tip" class="ios-card p-4 text-xs text-neutral-300 leading-relaxed"></div>
+      <div id="cfg-regional-tip" class="ios-card p-4 text-xs text-[#384933] leading-relaxed"></div>
+
+      <!-- Card Destacada: Reiniciar con Datos de Ejemplo -->
+      <div class="ios-card p-4 space-y-3 border-[#2d4123]/20 bg-[#f9fbf4]">
+        <div>
+          <h3 class="text-xs font-bold text-[#121e10] uppercase tracking-wider flex items-center gap-1.5">
+            <span>🔄</span>
+            <span>Versión de Demostración con Datos de Ejemplo</span>
+          </h3>
+          <p class="text-[11px] text-[#5c6f56] mt-0.5 leading-relaxed">
+            Restaura en cualquier momento dos plantas completas con notas diarias, riegos calculados, fertilizaciones, alertas del ciclo y diagnósticos para explorar o presentar la app.
+          </p>
+        </div>
+        <button type="button" id="btn-config-reset-demo" class="ios-btn ios-btn-primary text-xs !py-2 !px-4">
+          🔄 Cargar Cultivo de Demostración
+        </button>
+      </div>
 
       <!-- Respaldo Offline JSON -->
       <div class="ios-card p-4 space-y-3">
         <div>
-          <h3 class="text-xs font-bold text-white uppercase tracking-wider">Copia de Seguridad de la Bitácora</h3>
-          <p class="text-[11px] text-neutral-400 mt-0.5">Podés exportar todas tus plantas, fotos y notas a un archivo JSON para tener respaldo en tu computadora o cambiar de celular.</p>
+          <h3 class="text-xs font-bold text-[#121e10] uppercase tracking-wider">Copia de Seguridad de la Bitácora</h3>
+          <p class="text-[11px] text-[#5c6f56] mt-0.5">Podés exportar todas tus plantas, fotos y notas a un archivo JSON para tener respaldo en tu computadora o cambiar de celular.</p>
         </div>
         <div class="flex flex-wrap gap-2">
           <button type="button" id="btn-backup-export" class="ios-btn ios-btn-secondary text-xs !py-1.5 !px-3.5 !min-h-[2.1rem]">
@@ -626,17 +642,17 @@
       </div>
 
       <div class="pt-2 flex justify-between items-center text-xs">
-        <button type="button" id="btn-reset-app" class="text-neutral-500 hover:text-red-400 transition">
-          Restablecer datos de fábrica
+        <button type="button" id="btn-reset-app" class="text-red-600 hover:text-red-800 transition font-medium">
+          Restablecer datos de fábrica (vaciar)
         </button>
-        <span class="text-neutral-600 text-[11px]">CannaSur · Apple Minimalist UI</span>
+        <span class="text-[#5c6f56] text-[11px] font-semibold">CannaSur · Botanical Edition</span>
       </div>
     </section>
 
   </main>
 
   <!-- =====================================================================
-       BOTTOM NAVIGATION TAB BAR (Estilo iOS Nativo)
+       BOTTOM NAVIGATION TAB BAR (Estilo iOS Nativo con fondo claro)
        ===================================================================== -->
   <nav class="ios-tab-bar fixed bottom-0 left-0 right-0 z-40" aria-label="Navegación principal">
     <div class="mx-auto grid max-w-md grid-cols-5 gap-1 px-2 pt-1.5">
@@ -697,16 +713,16 @@
     <div class="ios-modal-sheet w-full max-w-lg p-5 space-y-4">
       <div class="ios-grab-handle"></div>
 
-      <!-- Barra de acciones superior estilo iOS (Cancelar / Título / Guardar) -->
-      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
-        <button id="btn-close-log-modal" type="button" class="text-xs text-neutral-400 hover:text-white transition font-medium">
+      <!-- Barra de acciones superior estilo iOS -->
+      <div class="flex items-center justify-between border-b border-[#2d4123]/10 pb-3">
+        <button id="btn-close-log-modal" type="button" class="text-xs text-[#5c6f56] hover:text-[#121e10] transition font-semibold">
           Cancelar
         </button>
         <div class="text-center">
-          <h3 id="modal-log-title" class="text-sm font-bold text-white">Nueva Entrada</h3>
-          <span id="modal-log-plant-badge" class="text-[10px] text-neutral-400 block font-mono">Planta</span>
+          <h3 id="modal-log-title" class="text-sm font-bold text-[#121e10]">Nueva Entrada</h3>
+          <span id="modal-log-plant-badge" class="text-[10px] text-[#5c6f56] block font-mono font-semibold">Planta</span>
         </div>
-        <button type="submit" form="form-log-entry" class="text-xs font-bold text-white hover:text-neutral-200 transition">
+        <button type="submit" form="form-log-entry" class="text-xs font-bold text-[#182e14] hover:text-[#23421c] transition">
           Guardar
         </button>
       </div>
@@ -714,7 +730,7 @@
       <form id="form-log-entry" class="space-y-4 text-xs">
         <!-- Selector de Tipo de Evento (Chips Limpios) -->
         <div>
-          <label class="block font-semibold text-neutral-300 mb-1.5 uppercase tracking-wide text-[11px]">Tipo de Entrada</label>
+          <label class="block font-bold text-[#121e10] mb-1.5 uppercase tracking-wide text-[11px]">Tipo de Entrada</label>
           <div class="grid grid-cols-3 gap-1.5" id="log-type-selector">
             <button type="button" data-type="riego_agua" class="log-type-btn rounded-xl border p-2 text-center font-semibold transition">💧 Riego</button>
             <button type="button" data-type="riego_nutrientes" class="log-type-btn rounded-xl border p-2 text-center font-semibold transition">🧪 Nutrientes</button>
@@ -728,8 +744,8 @@
 
         <!-- Fecha y Hora -->
         <div>
-          <label for="input-log-datetime" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Fecha y Hora</label>
-          <input id="input-log-datetime" type="datetime-local" class="ios-input w-full font-mono text-xs [color-scheme:dark]" required />
+          <label for="input-log-datetime" class="block font-bold text-[#121e10] mb-1 uppercase tracking-wide text-[11px]">Fecha y Hora</label>
+          <input id="input-log-datetime" type="datetime-local" class="ios-input w-full font-mono text-xs" required />
         </div>
 
         <!-- Campos Dinámicos -->
@@ -737,14 +753,14 @@
 
         <!-- Notas de la Entrada -->
         <div>
-          <label for="input-log-notes" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Notas y Observaciones</label>
+          <label for="input-log-notes" class="block font-bold text-[#121e10] mb-1 uppercase tracking-wide text-[11px]">Notas y Observaciones</label>
           <textarea id="input-log-notes" rows="3" placeholder="Anotá cómo viste la planta, color de hojas, olores, vigor..."
-            class="ios-input w-full text-xs placeholder:text-neutral-500 resize-none"></textarea>
+            class="ios-input w-full text-xs placeholder:text-[#889980] resize-none"></textarea>
         </div>
 
         <!-- Subir Foto -->
         <div>
-          <label class="block font-semibold text-neutral-300 mb-1.5 uppercase tracking-wide text-[11px]">Foto Adjunta</label>
+          <label class="block font-bold text-[#121e10] mb-1.5 uppercase tracking-wide text-[11px]">Foto Adjunta</label>
           <div class="flex items-center gap-3">
             <label class="ios-btn ios-btn-secondary text-xs !py-2 !px-3 cursor-pointer shrink-0">
               <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -752,15 +768,15 @@
               <input type="file" id="input-log-photo" accept="image/*" class="sr-only" />
             </label>
             <div id="log-photo-preview-box" class="hidden flex items-center gap-2">
-              <img id="log-photo-preview-img" src="" alt="Vista previa" class="h-10 w-10 object-cover rounded-xl border border-white/20" />
-              <button type="button" id="btn-remove-log-photo" class="text-xs text-neutral-400 hover:text-white underline">Quitar</button>
+              <img id="log-photo-preview-img" src="" alt="Vista previa" class="h-10 w-10 object-cover rounded-xl border border-[#2d4123]/20" />
+              <button type="button" id="btn-remove-log-photo" class="text-xs text-[#5c6f56] hover:text-[#121e10] underline">Quitar</button>
             </div>
           </div>
         </div>
 
         <!-- Actualizar Estado de Salud -->
         <div>
-          <label for="input-log-health-update" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Actualizar Salud de la Planta</label>
+          <label for="input-log-health-update" class="block font-bold text-[#121e10] mb-1 uppercase tracking-wide text-[11px]">Actualizar Salud de la Planta</label>
           <select id="input-log-health-update" class="ios-input w-full text-xs font-semibold">
             <option value="keep">Mantener estado actual</option>
             <option value="optima">🟢 Óptima y vigorosa</option>
@@ -792,12 +808,12 @@
     <div class="ios-modal-sheet w-full max-w-md p-5 space-y-4">
       <div class="ios-grab-handle"></div>
 
-      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
-        <button id="btn-close-plant-modal" type="button" class="text-xs text-neutral-400 hover:text-white font-medium">
+      <div class="flex items-center justify-between border-b border-[#2d4123]/10 pb-3">
+        <button id="btn-close-plant-modal" type="button" class="text-xs text-[#5c6f56] hover:text-[#121e10] font-semibold">
           Cancelar
         </button>
-        <h3 id="modal-plant-title" class="text-sm font-bold text-white">Nueva Planta</h3>
-        <button type="submit" form="form-plant" class="text-xs font-bold text-white hover:text-neutral-200">
+        <h3 id="modal-plant-title" class="text-sm font-bold text-[#121e10]">Nueva Planta</h3>
+        <button type="submit" form="form-plant" class="text-xs font-bold text-[#182e14] hover:text-[#23421c]">
           Guardar
         </button>
       </div>
@@ -806,19 +822,19 @@
         <input type="hidden" id="input-plant-id" value="" />
 
         <div>
-          <label for="input-plant-name" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Nombre de la Planta *</label>
+          <label for="input-plant-name" class="block font-bold text-[#121e10] mb-1 uppercase tracking-wide text-[11px]">Nombre de la Planta *</label>
           <input id="input-plant-name" type="text" placeholder="Ej: Gorilla Glue #1" class="ios-input w-full text-xs" required />
         </div>
 
         <div>
-          <label for="input-plant-strain" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Genética / Variedad</label>
+          <label for="input-plant-strain" class="block font-bold text-[#121e10] mb-1 uppercase tracking-wide text-[11px]">Genética / Variedad</label>
           <input id="input-plant-strain" type="text" placeholder="Ej: Gorilla Glue (Feminizada)" class="ios-input w-full text-xs" />
         </div>
 
         <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <label for="select-plant-type" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Tipo</label>
-            <select id="select-plant-type" class="ios-input w-full text-xs">
+            <label for="select-plant-type" class="block font-bold text-[#121e10] mb-1 uppercase tracking-wide text-[11px]">Tipo</label>
+            <select id="select-plant-type" class="ios-input w-full text-xs font-semibold">
               <option value="fotoperiodica">Fotoperiódica</option>
               <option value="automatica">Automática (Auto)</option>
               <option value="regular">Regular</option>
@@ -826,8 +842,8 @@
           </div>
 
           <div>
-            <label for="select-plant-medium" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Medio</label>
-            <select id="select-plant-medium" class="ios-input w-full text-xs">
+            <label for="select-plant-medium" class="block font-bold text-[#121e10] mb-1 uppercase tracking-wide text-[11px]">Medio</label>
+            <select id="select-plant-medium" class="ios-input w-full text-xs font-semibold">
               <option value="sustrato">Sustrato / Tierra</option>
               <option value="coco">Fibra de Coco</option>
               <option value="hidro">Hidroponía</option>
@@ -838,12 +854,12 @@
 
         <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <label for="input-plant-germ-date" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Germinación *</label>
-            <input id="input-plant-germ-date" type="date" class="ios-input w-full font-mono text-xs [color-scheme:dark]" required />
+            <label for="input-plant-germ-date" class="block font-bold text-[#121e10] mb-1 uppercase tracking-wide text-[11px]">Germinación *</label>
+            <input id="input-plant-germ-date" type="date" class="ios-input w-full font-mono text-xs" required />
           </div>
 
           <div>
-            <label for="select-plant-stage" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Etapa Inicial *</label>
+            <label for="select-plant-stage" class="block font-bold text-[#121e10] mb-1 uppercase tracking-wide text-[11px]">Etapa Inicial *</label>
             <select id="select-plant-stage" class="ios-input w-full text-xs font-semibold">
               <option value="plantula">🌱 Plántula</option>
               <option value="vegetativo" selected>🌿 Vegetativo</option>
@@ -856,7 +872,7 @@
         <!-- Estado de Salud & Estimación de Ciclo -->
         <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <label for="select-plant-health" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Estado de Salud *</label>
+            <label for="select-plant-health" class="block font-bold text-[#121e10] mb-1 uppercase tracking-wide text-[11px]">Estado de Salud *</label>
             <select id="select-plant-health" class="ios-input w-full text-xs font-semibold">
               <option value="optima" selected>🟢 Óptima y vigorosa</option>
               <option value="carencia_n">🟡 Carencia Nitrógeno (N)</option>
@@ -874,40 +890,40 @@
           </div>
 
           <div>
-            <label for="input-plant-cycle-days" class="block font-semibold text-neutral-300 mb-1 uppercase tracking-wide text-[11px]">Duración Ciclo (Días)</label>
+            <label for="input-plant-cycle-days" class="block font-bold text-[#121e10] mb-1 uppercase tracking-wide text-[11px]">Duración Ciclo (Días)</label>
             <input id="input-plant-cycle-days" type="number" min="40" max="365" value="140" placeholder="Ej: 140" class="ios-input w-full font-mono text-xs" />
           </div>
         </div>
 
         <!-- Tamaño de Maceta & Riego Promedio Calculado -->
-        <div class="rounded-xl bg-neutral-950 p-3 border border-white/[0.06] space-y-2">
+        <div class="rounded-xl bg-[#edf2e2] p-3 border border-[#2d4123]/15 space-y-2">
           <div class="flex items-center justify-between">
-            <label for="input-plant-pot" class="block font-semibold text-neutral-300 uppercase tracking-wide text-[11px]">Tamaño de Maceta (Litros) *</label>
-            <span id="plant-pot-hint" class="font-mono text-[11px] text-white font-bold">Riego: ~1.5 - 2.2 L</span>
+            <label for="input-plant-pot" class="block font-bold text-[#121e10] uppercase tracking-wide text-[11px]">Tamaño de Maceta (Litros) *</label>
+            <span id="plant-pot-hint" class="font-mono text-[11px] text-[#182e14] font-bold">Riego: ~1.5 - 2.2 L</span>
           </div>
           <input id="input-plant-pot" type="number" min="0.5" max="500" step="0.5" value="15" placeholder="Ej: 15" class="ios-input w-full font-mono text-xs" required />
           <div class="flex flex-wrap gap-1" id="plant-pot-presets">
-            <button type="button" data-pot="3" class="badge-mono cursor-pointer hover:border-white/40">3 L</button>
-            <button type="button" data-pot="7" class="badge-mono cursor-pointer hover:border-white/40">7 L</button>
-            <button type="button" data-pot="11" class="badge-mono cursor-pointer hover:border-white/40">11 L</button>
-            <button type="button" data-pot="15" class="badge-mono cursor-pointer hover:border-white/40">15 L</button>
-            <button type="button" data-pot="20" class="badge-mono cursor-pointer hover:border-white/40">20 L</button>
-            <button type="button" data-pot="25" class="badge-mono cursor-pointer hover:border-white/40">25 L</button>
+            <button type="button" data-pot="3" class="badge-mono cursor-pointer hover:border-[#2d4123]/40">3 L</button>
+            <button type="button" data-pot="7" class="badge-mono cursor-pointer hover:border-[#2d4123]/40">7 L</button>
+            <button type="button" data-pot="11" class="badge-mono cursor-pointer hover:border-[#2d4123]/40">11 L</button>
+            <button type="button" data-pot="15" class="badge-mono cursor-pointer hover:border-[#2d4123]/40">15 L</button>
+            <button type="button" data-pot="20" class="badge-mono cursor-pointer hover:border-[#2d4123]/40">20 L</button>
+            <button type="button" data-pot="25" class="badge-mono cursor-pointer hover:border-[#2d4123]/40">25 L</button>
           </div>
-          <p class="text-[10px] text-neutral-400">Riego promedio sugerido: 10% a 15% del volumen de la maceta para una correcta oxigenación sin encharcar.</p>
+          <p class="text-[10px] text-[#5c6f56]">Riego promedio sugerido: 10% a 15% del volumen de la maceta para una correcta oxigenación sin encharcar.</p>
         </div>
 
         <!-- Foto de Portada -->
         <div>
-          <label class="block font-semibold text-neutral-300 mb-1.5 uppercase tracking-wide text-[11px]">Foto de Portada</label>
+          <label class="block font-bold text-[#121e10] mb-1.5 uppercase tracking-wide text-[11px]">Foto de Portada</label>
           <div class="flex items-center gap-3">
             <label class="ios-btn ios-btn-secondary text-xs !py-2 !px-3 cursor-pointer">
               <span>Subir Foto</span>
               <input type="file" id="input-plant-cover-photo" accept="image/*" class="sr-only" />
             </label>
             <div id="plant-cover-preview-box" class="hidden flex items-center gap-2">
-              <img id="plant-cover-preview-img" src="" alt="Portada" class="h-10 w-10 object-cover rounded-xl border border-white/20" />
-              <button type="button" id="btn-remove-plant-cover" class="text-xs text-neutral-400 hover:text-white underline">Quitar</button>
+              <img id="plant-cover-preview-img" src="" alt="Portada" class="h-10 w-10 object-cover rounded-xl border border-[#2d4123]/20" />
+              <button type="button" id="btn-remove-plant-cover" class="text-xs text-[#5c6f56] hover:text-[#121e10] underline">Quitar</button>
             </div>
           </div>
         </div>
@@ -922,11 +938,11 @@
   <!-- =====================================================================
        MODAL 3: LIGHTBOX VISOR DE FOTOS (APPLE STYLE)
        ===================================================================== -->
-  <div id="lightbox-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/95 backdrop-blur-xl p-4">
+  <div id="lightbox-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/85 backdrop-blur-xl p-4">
     <div class="relative max-w-2xl w-full flex flex-col items-center">
       <button id="btn-close-lightbox" type="button" class="absolute -top-10 right-0 text-white text-xl p-2 hover:opacity-70 transition">✕</button>
-      <img id="lightbox-img" src="" alt="Foto ampliada" class="max-h-[82vh] w-auto rounded-2xl shadow-2xl border border-white/10 object-contain" />
-      <p id="lightbox-caption" class="text-xs text-neutral-300 mt-3 text-center"></p>
+      <img id="lightbox-img" src="" alt="Foto ampliada" class="max-h-[82vh] w-auto rounded-2xl shadow-2xl border border-white/20 object-contain" />
+      <p id="lightbox-caption" class="text-xs text-white mt-3 text-center"></p>
     </div>
   </div>
 
@@ -936,11 +952,11 @@
   <div id="export-modal" class="ios-modal-backdrop fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="ios-modal-sheet w-full max-w-md p-5 space-y-4">
       <div class="ios-grab-handle"></div>
-      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
-        <h3 class="text-sm font-bold text-white">Exportar Resumen</h3>
-        <button id="btn-close-export" type="button" class="text-xs text-neutral-400 hover:text-white">Cerrar</button>
+      <div class="flex items-center justify-between border-b border-[#2d4123]/10 pb-3">
+        <h3 class="text-sm font-bold text-[#121e10]">Exportar Resumen</h3>
+        <button id="btn-close-export" type="button" class="text-xs text-[#5c6f56] hover:text-[#121e10]">Cerrar</button>
       </div>
-      <div class="flex justify-center bg-neutral-950 p-2 rounded-2xl border border-white/10">
+      <div class="flex justify-center bg-[#f4f6ec] p-2 rounded-2xl border border-[#2d4123]/15">
         <canvas id="routine-export-canvas" class="w-full max-w-[340px] h-auto rounded-xl shadow"></canvas>
       </div>
       <div class="grid grid-cols-2 gap-2">
@@ -952,7 +968,7 @@
 
   <!-- Toast Notificación iOS -->
   <div id="app-toast" class="pointer-events-none fixed left-1/2 top-14 z-50 -translate-x-1/2 opacity-0 transition-all duration-200">
-    <div class="rounded-full border border-white/20 bg-neutral-900/95 px-4 py-2 text-xs font-semibold text-white shadow-2xl backdrop-blur-md">
+    <div class="rounded-full border border-[#2d4123]/20 bg-[#ffffff]/95 px-4 py-2 text-xs font-bold text-[#121e10] shadow-2xl backdrop-blur-md">
       <span id="app-toast-text">Guardado</span>
     </div>
   </div>
