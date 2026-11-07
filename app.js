@@ -1,1436 +1,1509 @@
 /* ==========================================================================
-   CannaSur AR — Calculadora & Asistente de Cultivo (Hemisferio Sur)
-   Vanilla JS modularizado. Secciones:
-     1. Constantes & datos (etapas, marcas, parámetros)
-     2. Estado + persistencia (localStorage)
-     3. Utilidades (fechas en hora Argentina, formato, DOM)
-     4. Motor lunar astronómico (Meeus, cap. 49)
-     5. Módulo Modo de Cultivo (Indoor / Outdoor)
-     6. Módulo Calculadora de Fertilizantes
-     7. Módulo Calendario Lunar
-     8. Módulo Plagas (MIP preventivo)
-     9. Módulo Configuración
-    10. Módulo Exportación (PDF / PNG)
-    11. Navegación + init
+   CannaSur AR — Bitácora de Cultivo (Growlogs) & Asistente Offline
+   Inspirado en "Grow with Jane": minimalista, offline-first y táctil.
    ========================================================================== */
 'use strict';
 
 /* ==========================================================================
-   1. CONSTANTES & DATOS
+   1. CONSTANTES & CONFIGURACIONES GLOBALES
    ========================================================================== */
-const TZ_OFFSET_MS = 3 * 3600 * 1000; // Argentina: UTC-3 todo el año
+const TZ_OFFSET_MS = 3 * 3600 * 1000; // Argentina UTC-3
 const DAY_MS = 86400000;
-const STORAGE_KEY = 'cannasur-ar:v1';
+const DB_NAME = 'CannaSurDB';
+const DB_VERSION = 1;
 
-const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-const DOW_SHORT = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
-
-const STAGE_ORDER = ['plantula', 'vegetativo', 'transicion', 'flora_temprana', 'flora_tardia'];
 const STAGES = {
-  plantula: { label: 'Plántula', emoji: '🌱', light: '18/6', desc: 'Raíces y primeras hojas verdaderas. Dosis suaves.' },
-  vegetativo: { label: 'Vegetativo', emoji: '🌿', light: '18/6', desc: 'Estructura, tallos y ramas. Alta demanda de nitrógeno.' },
-  transicion: { label: 'Transición', emoji: '⚡', light: '12/12 (sem 1-2)', desc: 'Stretch: la planta puede duplicar su altura. Cambio gradual a P-K.' },
-  flora_temprana: { label: 'Floración temprana', emoji: '🌸', light: '12/12', desc: 'Formación de cogollos y pistilos. Fósforo + azúcares.' },
-  flora_tardia: { label: 'Floración tardía', emoji: '💎', light: '12/12', desc: 'Engorde, resina y maduración de tricomas. Lavado final 7–14 días.' }
+  plantula: { label: 'Plántula', emoji: '🌱', badgeClass: 'stage-badge-plantula', desc: 'Enraizamiento y primeras hojas verdaderas' },
+  vegetativo: { label: 'Vegetativo', emoji: '🌿', badgeClass: 'stage-badge-vegetativo', desc: 'Crecimiento de ramas y follaje' },
+  transicion: { label: 'Transición', emoji: '⚡', badgeClass: 'stage-badge-transicion', desc: 'Pre-floración y estiramiento (stretch)' },
+  floracion: { label: 'Floración', emoji: '🌸', badgeClass: 'stage-badge-floracion', desc: 'Formación y engorde de cogollos' },
+  cosecha: { label: 'Cosecha', emoji: '💎', badgeClass: 'stage-badge-cosecha', desc: 'Maduración de tricomas y secado' }
 };
 
-/* Parámetros objetivo por medio de cultivo (EC en mS/cm) */
-const STAGE_PARAMS = {
-  sustrato: {
-    plantula: { ph: '6.0 – 6.5', ec: '0.4 – 0.8' },
-    vegetativo: { ph: '6.0 – 6.5', ec: '0.8 – 1.3' },
-    transicion: { ph: '6.2 – 6.5', ec: '1.2 – 1.6' },
-    flora_temprana: { ph: '6.2 – 6.8', ec: '1.4 – 1.8' },
-    flora_tardia: { ph: '6.3 – 6.8', ec: '1.4 – 1.9' }
+const LOG_TYPES = {
+  riego_agua: { label: 'Riego con Agua', icon: '💧', color: 'text-cyan-300', border: 'border-cyan-400/40', bg: 'bg-cyan-500/15' },
+  riego_nutrientes: { label: 'Riego con Nutrientes', icon: '🧪', color: 'text-emerald-300', border: 'border-emerald-400/40', bg: 'bg-emerald-500/15' },
+  foliar: { label: 'Aplicación Foliar', icon: '🌿', color: 'text-lime-300', border: 'border-lime-400/40', bg: 'bg-lime-500/15' },
+  poda: { label: 'Poda / LST', icon: '✂️', color: 'text-purple-300', border: 'border-purple-400/40', bg: 'bg-purple-500/15' },
+  transplante: { label: 'Transplante', icon: '🪴', color: 'text-amber-300', border: 'border-amber-400/40', bg: 'bg-amber-500/15' },
+  cambio_etapa: { label: 'Cambio de Etapa', icon: '🌸', color: 'text-pink-300', border: 'border-pink-400/40', bg: 'bg-pink-500/15' },
+  nota_foto: { label: 'Foto / Nota', icon: '📷', color: 'text-sky-300', border: 'border-sky-400/40', bg: 'bg-sky-500/15' }
+};
+
+/* ==========================================================================
+   2. UTILIDADES DE FECHA, FORMATO Y DOM
+   ========================================================================== */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function nowLocalDateTime() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+function todayDateStr() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+function daysDiff(d1Str, d2Str) {
+  const t1 = new Date(d1Str).setHours(0, 0, 0, 0);
+  const t2 = new Date(d2Str).setHours(0, 0, 0, 0);
+  return Math.max(0, Math.floor((t2 - t1) / DAY_MS));
+}
+
+function formatPrettyDate(dateIsoStr) {
+  if (!dateIsoStr) return '—';
+  const d = new Date(dateIsoStr);
+  const day = d.getDate();
+  const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  const hours = String(d.getHours()).padStart(2, '0');
+  const mins = String(d.getMinutes()).padStart(2, '0');
+  return `${day} ${months[d.getMonth()]}, ${hours}:${mins} hs`;
+}
+
+function timeAgo(dateIsoStr) {
+  if (!dateIsoStr) return '';
+  const diffMs = Date.now() - new Date(dateIsoStr).getTime();
+  const diffHours = Math.floor(diffMs / (3600 * 1000));
+  const diffDays = Math.floor(diffMs / DAY_MS);
+  if (diffHours < 1) return 'hace un momento';
+  if (diffHours < 24) return `hace ${diffHours} h`;
+  if (diffDays === 1) return 'ayer';
+  if (diffDays < 30) return `hace ${diffDays} días`;
+  return `hace ${Math.floor(diffDays / 7)} sem`;
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const el = $('app-toast');
+  $('app-toast-text').textContent = msg;
+  el.style.opacity = '1';
+  el.style.transform = 'translate(-50%, 8px)';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translate(-50%, 0)';
+  }, 2300);
+}
+
+/* Redimensionar y comprimir imágenes vía Canvas (mantiene la app rápida y ligera) */
+function compressImage(file, maxWidth = 1000, quality = 0.78) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxWidth) {
+          h = Math.round((h * maxWidth) / w);
+          w = maxWidth;
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ==========================================================================
+   3. GESTOR DE ALMACENAMIENTO OFFLINE (IndexedDB con fallback a localStorage)
+   ========================================================================== */
+const Storage = {
+  db: null,
+
+  async init() {
+    return new Promise((resolve) => {
+      if (!window.indexedDB) {
+        console.warn('IndexedDB no soportado, usando localStorage');
+        resolve();
+        return;
+      }
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('plants')) {
+          db.createObjectStore('plants', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('logs')) {
+          const logStore = db.createObjectStore('logs', { keyPath: 'id' });
+          logStore.createIndex('plantId', 'plantId', { unique: false });
+        }
+      };
+      req.onsuccess = (e) => {
+        this.db = e.target.result;
+        resolve();
+      };
+      req.onerror = () => {
+        console.warn('Fallo al abrir IndexedDB, usando localStorage');
+        resolve();
+      };
+    });
   },
-  coco: {
-    plantula: { ph: '5.6 – 6.0', ec: '0.5 – 0.9' },
-    vegetativo: { ph: '5.7 – 6.0', ec: '1.0 – 1.5' },
-    transicion: { ph: '5.8 – 6.1', ec: '1.4 – 1.8' },
-    flora_temprana: { ph: '5.8 – 6.2', ec: '1.6 – 2.0' },
-    flora_tardia: { ph: '5.9 – 6.2', ec: '1.6 – 2.1' }
+
+  /* Plantas */
+  async getPlants() {
+    if (this.db) {
+      return new Promise((res) => {
+        const tx = this.db.transaction('plants', 'readonly');
+        const req = tx.objectStore('plants').getAll();
+        req.onsuccess = () => res(req.result || []);
+        req.onerror = () => res([]);
+      });
+    }
+    try {
+      return JSON.parse(localStorage.getItem('cannasur_plants') || '[]');
+    } catch { return []; }
+  },
+
+  async savePlant(plant) {
+    if (this.db) {
+      return new Promise((res, rej) => {
+        const tx = this.db.transaction('plants', 'readwrite');
+        const req = tx.objectStore('plants').put(plant);
+        req.onsuccess = () => res(plant);
+        req.onerror = rej;
+      });
+    }
+    const plants = await this.getPlants();
+    const idx = plants.findIndex((p) => p.id === plant.id);
+    if (idx >= 0) plants[idx] = plant; else plants.unshift(plant);
+    localStorage.setItem('cannasur_plants', JSON.stringify(plants));
+    return plant;
+  },
+
+  async deletePlant(plantId) {
+    if (this.db) {
+      return new Promise((res) => {
+        const tx = this.db.transaction(['plants', 'logs'], 'readwrite');
+        tx.objectStore('plants').delete(plantId);
+        // Borrar logs asociados
+        const logStore = tx.objectStore('logs');
+        const index = logStore.index('plantId');
+        const req = index.openCursor(IDBKeyRange.only(plantId));
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            logStore.delete(cursor.primaryKey);
+            cursor.continue();
+          }
+        };
+        tx.oncomplete = () => res();
+      });
+    }
+    let plants = await this.getPlants();
+    plants = plants.filter((p) => p.id !== plantId);
+    localStorage.setItem('cannasur_plants', JSON.stringify(plants));
+    let logs = await this.getAllLogs();
+    logs = logs.filter((l) => l.plantId !== plantId);
+    localStorage.setItem('cannasur_logs', JSON.stringify(logs));
+  },
+
+  /* Logs / Eventos */
+  async getAllLogs() {
+    if (this.db) {
+      return new Promise((res) => {
+        const tx = this.db.transaction('logs', 'readonly');
+        const req = tx.objectStore('logs').getAll();
+        req.onsuccess = () => res(req.result || []);
+        req.onerror = () => res([]);
+      });
+    }
+    try {
+      return JSON.parse(localStorage.getItem('cannasur_logs') || '[]');
+    } catch { return []; }
+  },
+
+  async getLogsByPlant(plantId) {
+    if (this.db) {
+      return new Promise((res) => {
+        const tx = this.db.transaction('logs', 'readonly');
+        const index = tx.objectStore('logs').index('plantId');
+        const req = index.getAll(plantId);
+        req.onsuccess = () => {
+          const list = req.result || [];
+          list.sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
+          res(list);
+        };
+        req.onerror = () => res([]);
+      });
+    }
+    const all = await this.getAllLogs();
+    const list = all.filter((l) => l.plantId === plantId);
+    list.sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
+    return list;
+  },
+
+  async saveLog(log) {
+    if (this.db) {
+      return new Promise((res, rej) => {
+        const tx = this.db.transaction('logs', 'readwrite');
+        const req = tx.objectStore('logs').put(log);
+        req.onsuccess = () => res(log);
+        req.onerror = rej;
+      });
+    }
+    const logs = await this.getAllLogs();
+    const idx = logs.findIndex((l) => l.id === log.id);
+    if (idx >= 0) logs[idx] = log; else logs.unshift(log);
+    localStorage.setItem('cannasur_logs', JSON.stringify(logs));
+    return log;
+  },
+
+  async deleteLog(logId) {
+    if (this.db) {
+      return new Promise((res) => {
+        const tx = this.db.transaction('logs', 'readwrite');
+        tx.objectStore('logs').delete(logId);
+        tx.oncomplete = () => res();
+      });
+    }
+    let logs = await this.getAllLogs();
+    logs = logs.filter((l) => l.id !== logId);
+    localStorage.setItem('cannasur_logs', JSON.stringify(logs));
+  },
+
+  /* Semilla inicial para pruebas inmediatas si la base está vacía */
+  async seedIfEmpty() {
+    const plants = await this.getPlants();
+    if (plants.length > 0) return;
+
+    const germDate = new Date(Date.now() - 36 * DAY_MS).toISOString().split('T')[0];
+    const demoPlant = {
+      id: 'demo-plant-1',
+      name: 'Gorilla Glue #4',
+      strain: 'Gorilla Glue #4 (Feminizada)',
+      type: 'fotoperiodica',
+      medium: 'sustrato',
+      germDate: germDate,
+      stage: 'vegetativo',
+      stageDate: germDate,
+      createdAt: new Date().toISOString()
+    };
+    await this.savePlant(demoPlant);
+
+    const logs = [
+      {
+        id: 'log-1',
+        plantId: demoPlant.id,
+        type: 'transplante',
+        dateTime: new Date(Date.now() - 34 * DAY_MS).toISOString(),
+        notes: 'Semilla germinada con éxito en servilleta. Trasplante a maceta de 1L con sustrato liviano.',
+        metrics: { potSize: '1 L' }
+      },
+      {
+        id: 'log-2',
+        plantId: demoPlant.id,
+        type: 'riego_nutrientes',
+        dateTime: new Date(Date.now() - 14 * DAY_MS).toISOString(),
+        notes: 'Primer riego nutricional con Amazonia Roots (micorrizas) y Deeper Underground para estimular el cepellón de raíces.',
+        metrics: { liters: 1.5, ph: 6.2, ec: 0.9, products: 'Amazonia 1g/L + Deeper Underground 1.5ml/L' }
+      },
+      {
+        id: 'log-3',
+        plantId: demoPlant.id,
+        type: 'poda',
+        dateTime: new Date(Date.now() - 6 * DAY_MS).toISOString(),
+        notes: 'Poda apical en el 4to nudo para fomentar ramificación lateral. Excelente cicatrización y vigor.',
+        metrics: { pruneType: 'Poda Apical' }
+      },
+      {
+        id: 'log-4',
+        plantId: demoPlant.id,
+        type: 'foliar',
+        dateTime: new Date(Date.now() - 2 * DAY_MS).toISOString(),
+        notes: 'Aplicación foliar preventiva al atardecer: Aceite de Neem + Jabón Potásico en el envés de las hojas.',
+        metrics: { foliarType: 'Aceite de Neem + Jabón Potásico', liters: 1.0 }
+      }
+    ];
+
+    for (const log of logs) {
+      await this.saveLog(log);
+    }
   }
 };
 
-/* Líneas de fertilizantes. Dosis en unidad/L (ml o g) según tablas orientativas
-   de cada fabricante para tierra. `base: true` = se refuerza x1.2 en coco/hidro
-   (solo líneas minerales). Editá estos valores libremente. */
+/* ==========================================================================
+   4. MÓDULO GROWLOGS (BITÁCORA DE PLANTAS)
+   ========================================================================== */
+const GrowlogsModule = {
+  plants: [],
+  activePlantId: null,
+  activeFilter: 'all',
+  activeTimelineFilter: 'all',
+  pendingPhotoData: null,
+
+  async init() {
+    await Storage.seedIfEmpty();
+    await this.loadPlants();
+
+    // Eventos del Dashboard
+    $('btn-top-new-plant').addEventListener('click', () => this.openPlantModal());
+    $('btn-empty-add-plant')?.addEventListener('click', () => this.openPlantModal());
+    $('btn-load-demo-plant')?.addEventListener('click', async () => {
+      await Storage.seedIfEmpty();
+      await this.loadPlants();
+      showToast('🌱 Planta demo cargada');
+    });
+
+    $('btn-back-to-plants').addEventListener('click', () => this.showDashboard());
+    $('btn-edit-plant-info').addEventListener('click', () => {
+      const plant = this.plants.find((p) => p.id === this.activePlantId);
+      if (plant) this.openPlantModal(plant);
+    });
+
+    $('btn-delete-plant').addEventListener('click', async () => {
+      if (!confirm('¿Estás seguro de eliminar esta planta y todo su historial de eventos?')) return;
+      await Storage.deletePlant(this.activePlantId);
+      this.activePlantId = null;
+      await this.loadPlants();
+      this.showDashboard();
+      showToast('🗑️ Planta eliminada');
+    });
+
+    // Filtros de etapas de plantas
+    $('plants-stage-filters').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-plant-filter]');
+      if (!btn) return;
+      this.activeFilter = btn.dataset.plantFilter;
+      document.querySelectorAll('#plants-stage-filters button').forEach((b) => {
+        const act = b === btn;
+        b.className = act
+          ? 'rounded-lg px-2.5 py-1 text-xs font-semibold bg-emerald-500/20 text-emerald-200 border border-emerald-500/30'
+          : 'rounded-lg px-2.5 py-1 text-xs font-semibold bg-canna-900 text-slate-400 hover:text-white border border-emerald-500/10';
+      });
+      this.renderPlantsGrid();
+    });
+
+    // Filtros de Timeline
+    $('timeline-filters').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-timeline-filter]');
+      if (!btn) return;
+      this.activeTimelineFilter = btn.dataset.timelineFilter;
+      document.querySelectorAll('#timeline-filters button').forEach((b) => {
+        const act = b === btn;
+        b.className = act
+          ? 'rounded-lg px-2.5 py-1 text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+          : 'rounded-lg px-2.5 py-1 text-xs font-semibold bg-canna-900 text-slate-400 hover:text-white border border-emerald-500/10';
+      });
+      this.renderTimeline();
+    });
+
+    // Accesos rápidos de registro
+    document.querySelectorAll('[data-quick-log]').forEach((b) => {
+      b.addEventListener('click', () => this.openLogModal(b.dataset.quickLog));
+    });
+    $('btn-open-full-log').addEventListener('click', () => this.openLogModal('riego_agua'));
+
+    // Modal de Registro
+    $('btn-close-log-modal').addEventListener('click', () => this.closeLogModal());
+    $('form-log-entry').addEventListener('submit', (e) => this.handleLogSubmit(e));
+
+    $('log-type-selector').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-type]');
+      if (!btn) return;
+      this.setLogModalType(btn.dataset.type);
+    });
+
+    // Subida de Foto en Log
+    $('input-log-photo').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        this.pendingPhotoData = await compressImage(file, 900, 0.78);
+        $('log-photo-preview-img').src = this.pendingPhotoData;
+        $('log-photo-preview-box').classList.remove('hidden');
+      } catch (err) {
+        showToast('Error al procesar imagen');
+      }
+    });
+    $('btn-remove-log-photo').addEventListener('click', () => {
+      this.pendingPhotoData = null;
+      $('input-log-photo').value = '';
+      $('log-photo-preview-box').classList.add('hidden');
+    });
+
+    // Modal de Planta
+    $('btn-close-plant-modal').addEventListener('click', () => this.closePlantModal());
+    $('form-plant').addEventListener('submit', (e) => this.handlePlantSubmit(e));
+
+    $('input-plant-cover-photo').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const photo = await compressImage(file, 800, 0.75);
+        $('plant-cover-preview-img').src = photo;
+        $('plant-cover-preview-box').classList.remove('hidden');
+        $('input-plant-cover-photo').dataset.base64 = photo;
+      } catch {
+        showToast('Error al procesar foto de portada');
+      }
+    });
+    $('btn-remove-plant-cover').addEventListener('click', () => {
+      delete $('input-plant-cover-photo').dataset.base64;
+      $('input-plant-cover-photo').value = '';
+      $('plant-cover-preview-box').classList.add('hidden');
+    });
+
+    // Lightbox
+    $('btn-close-lightbox').addEventListener('click', () => $('lightbox-modal').classList.add('hidden'));
+    $('lightbox-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'lightbox-modal') $('lightbox-modal').classList.add('hidden');
+    });
+  },
+
+  async loadPlants() {
+    this.plants = await Storage.getPlants();
+    this.updateStats();
+    this.renderPlantsGrid();
+  },
+
+  updateStats() {
+    $('stat-total-plants').textContent = this.plants.length;
+    $('stat-veg-plants').textContent = this.plants.filter((p) => p.stage === 'vegetativo' || p.stage === 'plantula').length;
+    $('stat-flower-plants').textContent = this.plants.filter((p) => p.stage === 'floracion' || p.stage === 'transicion').length;
+  },
+
+  renderPlantsGrid() {
+    const grid = $('plants-grid');
+    const empty = $('plants-empty-state');
+
+    let filtered = this.plants;
+    if (this.activeFilter !== 'all') {
+      filtered = this.plants.filter((p) => p.stage === this.activeFilter);
+    }
+
+    if (this.plants.length === 0) {
+      grid.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+
+    if (filtered.length === 0) {
+      grid.innerHTML = `<div class="col-span-full app-card p-6 text-center text-xs text-slate-400">No hay plantas en etapa ${this.activeFilter}.</div>`;
+      return;
+    }
+
+    grid.innerHTML = filtered.map((p) => {
+      const days = daysDiff(p.germDate, todayDateStr());
+      const weeks = Math.max(1, Math.floor(days / 7) + 1);
+      const st = STAGES[p.stage] || STAGES.vegetativo;
+
+      return `
+        <div class="app-card overflow-hidden flex flex-col justify-between hover:border-emerald-500/40 transition cursor-pointer group" onclick="GrowlogsModule.openPlantDetail('${p.id}')">
+          <div>
+            <!-- Portada o Cabecera Visual -->
+            <div class="relative h-28 w-full bg-canna-950 flex items-center justify-center overflow-hidden border-b border-emerald-500/10">
+              ${p.coverPhoto
+                ? `<img src="${p.coverPhoto}" alt="${esc(p.name)}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />`
+                : `<div class="flex flex-col items-center justify-center text-slate-600 group-hover:text-emerald-400 transition">
+                     <span class="text-3xl">${st.emoji}</span>
+                     <span class="text-[10px] uppercase font-bold tracking-widest mt-1 text-slate-500">${p.type}</span>
+                   </div>`}
+              <div class="absolute top-2 left-2 flex items-center gap-1.5">
+                <span class="rounded-md px-2 py-0.5 text-[10px] font-bold ${st.badgeClass}">${st.label}</span>
+              </div>
+              <div class="absolute bottom-2 right-2 rounded-md bg-black/75 px-2 py-0.5 text-[11px] font-mono font-bold text-white backdrop-blur-sm border border-white/10">
+                Día ${days} <span class="text-emerald-400 font-semibold">(Sem ${weeks})</span>
+              </div>
+            </div>
+
+            <!-- Detalles -->
+            <div class="p-3.5 space-y-1.5">
+              <h3 class="text-base font-extrabold text-white group-hover:text-emerald-300 transition truncate">${esc(p.name)}</h3>
+              <p class="text-xs text-slate-400 truncate">${esc(p.strain || 'Genética sin especificar')}</p>
+              <div class="flex items-center gap-2 pt-1 text-[11px] text-slate-400">
+                <span class="rounded bg-canna-900 border border-emerald-500/10 px-1.5 py-0.5">🌱 Germinó: ${p.germDate}</span>
+                <span class="rounded bg-canna-900 border border-emerald-500/10 px-1.5 py-0.5">${p.medium}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pie de tarjeta táctil -->
+          <div class="px-3.5 pb-3 pt-1 border-t border-emerald-500/10 flex items-center justify-between text-xs text-emerald-400 font-semibold">
+            <span>Ver Bitácora &amp; Eventos</span>
+            <span class="group-hover:translate-x-1 transition">→</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  async openPlantDetail(plantId) {
+    this.activePlantId = plantId;
+    const plant = this.plants.find((p) => p.id === plantId);
+    if (!plant) return;
+
+    $('growlogs-dashboard-container').classList.add('hidden');
+    $('growlogs-detail-container').classList.remove('hidden');
+    $('top-bar-subtext').textContent = `${plant.name} · Bitácora`;
+
+    this.renderPlantHero(plant);
+    await this.renderTimeline();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+
+  showDashboard() {
+    this.activePlantId = null;
+    $('growlogs-detail-container').classList.add('hidden');
+    $('growlogs-dashboard-container').classList.remove('hidden');
+    $('top-bar-subtext').textContent = 'Bitácora de Plantas · Offline';
+    this.renderPlantsGrid();
+  },
+
+  renderPlantHero(plant) {
+    const days = daysDiff(plant.germDate, todayDateStr());
+    const weeks = Math.max(1, Math.floor(days / 7) + 1);
+    const st = STAGES[plant.stage] || STAGES.vegetativo;
+
+    $('plant-hero-card').innerHTML = `
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5">
+          <div class="h-16 w-16 shrink-0 rounded-2xl bg-canna-950 border border-emerald-500/20 overflow-hidden flex items-center justify-center">
+            ${plant.coverPhoto
+              ? `<img src="${plant.coverPhoto}" alt="${esc(plant.name)}" class="h-full w-full object-cover cursor-pointer" onclick="GrowlogsModule.openLightbox('${plant.coverPhoto}', '${esc(plant.name)}')">`
+              : `<span class="text-2xl">${st.emoji}</span>`}
+          </div>
+
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-extrabold text-white leading-tight">${esc(plant.name)}</h2>
+              <span class="rounded-md px-2 py-0.5 text-[10px] font-bold ${st.badgeClass}">${st.label}</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">${esc(plant.strain || 'Variedad personalizada')} · <span class="capitalize">${plant.type}</span></p>
+            <div class="flex items-center gap-2 mt-1.5 font-mono text-xs">
+              <span class="text-emerald-300 font-bold">Día ${days}</span>
+              <span class="text-slate-500">|</span>
+              <span class="text-slate-300">Semana ${weeks}</span>
+              <span class="text-slate-500">|</span>
+              <span class="text-slate-400 font-sans">${plant.medium}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selector Rápido de Cambio de Etapa -->
+        <div class="flex items-center gap-2 bg-canna-950 p-2 rounded-xl border border-emerald-500/15">
+          <label for="quick-change-stage" class="text-[11px] font-bold text-slate-400 uppercase">Etapa:</label>
+          <select id="quick-change-stage" class="bg-transparent text-xs font-bold text-emerald-300 focus:outline-none cursor-pointer">
+            <option value="plantula" ${plant.stage === 'plantula' ? 'selected' : ''}>🌱 Plántula</option>
+            <option value="vegetativo" ${plant.stage === 'vegetativo' ? 'selected' : ''}>🌿 Vegetativo</option>
+            <option value="transicion" ${plant.stage === 'transicion' ? 'selected' : ''}>⚡ Transición</option>
+            <option value="floracion" ${plant.stage === 'floracion' ? 'selected' : ''}>🌸 Floración</option>
+            <option value="cosecha" ${plant.stage === 'cosecha' ? 'selected' : ''}>💎 Cosecha</option>
+          </select>
+        </div>
+      </div>
+    `;
+
+    $('quick-change-stage').addEventListener('change', async (e) => {
+      const newStage = e.target.value;
+      if (newStage === plant.stage) return;
+      plant.stage = newStage;
+      await Storage.savePlant(plant);
+
+      // Registrar evento de cambio de etapa automáticamente
+      await Storage.saveLog({
+        id: 'log-' + Date.now(),
+        plantId: plant.id,
+        type: 'cambio_etapa',
+        dateTime: new Date().toISOString(),
+        notes: `Cambio de etapa fenológica a ${STAGES[newStage].label}.`,
+        metrics: { stage: newStage }
+      });
+
+      this.renderPlantHero(plant);
+      await this.renderTimeline();
+      showToast(`🌸 Etapa actualizada a ${STAGES[newStage].label}`);
+    });
+  },
+
+  async renderTimeline() {
+    if (!this.activePlantId) return;
+    const plant = this.plants.find((p) => p.id === this.activePlantId);
+    let logs = await Storage.getLogsByPlant(this.activePlantId);
+
+    $('timeline-count-badge').textContent = `${logs.length} ${logs.length === 1 ? 'evento' : 'eventos'}`;
+
+    if (this.activeTimelineFilter === 'riegos') {
+      logs = logs.filter((l) => l.type === 'riego_agua' || l.type === 'riego_nutrientes');
+    } else if (this.activeTimelineFilter === 'foliar') {
+      logs = logs.filter((l) => l.type === 'foliar');
+    } else if (this.activeTimelineFilter === 'manejo') {
+      logs = logs.filter((l) => l.type === 'poda' || l.type === 'transplante' || l.type === 'cambio_etapa');
+    } else if (this.activeTimelineFilter === 'fotos') {
+      logs = logs.filter((l) => !!l.photo || l.type === 'nota_foto');
+    }
+
+    const container = $('plant-timeline-container');
+    const empty = $('timeline-empty-state');
+
+    if (logs.length === 0) {
+      container.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+
+    container.innerHTML = logs.map((log) => {
+      const t = LOG_TYPES[log.type] || LOG_TYPES.nota_foto;
+      const dayAtLog = plant ? daysDiff(plant.germDate, log.dateTime.split('T')[0]) : null;
+
+      // Métricas formateadas si existen
+      let metricsBadges = '';
+      if (log.metrics) {
+        const m = log.metrics;
+        if (m.liters) metricsBadges += `<span class="rounded bg-canna-950 border border-cyan-500/20 px-2 py-0.5 text-cyan-300 font-mono">${m.liters} L agua</span>`;
+        if (m.ph) metricsBadges += `<span class="rounded bg-canna-950 border border-emerald-500/20 px-2 py-0.5 text-emerald-300 font-mono">pH ${m.ph}</span>`;
+        if (m.ec) metricsBadges += `<span class="rounded bg-canna-950 border border-lime-500/20 px-2 py-0.5 text-lime-300 font-mono">EC ${m.ec}</span>`;
+        if (m.products) metricsBadges += `<span class="rounded bg-canna-950 border border-emerald-500/20 px-2 py-0.5 text-slate-300">${esc(m.products)}</span>`;
+        if (m.foliarType) metricsBadges += `<span class="rounded bg-canna-950 border border-lime-500/20 px-2 py-0.5 text-lime-300">${esc(m.foliarType)}</span>`;
+        if (m.pruneType) metricsBadges += `<span class="rounded bg-canna-950 border border-purple-500/20 px-2 py-0.5 text-purple-300">${esc(m.pruneType)}</span>`;
+        if (m.potSize) metricsBadges += `<span class="rounded bg-canna-950 border border-amber-500/20 px-2 py-0.5 text-amber-300">Maceta ${esc(m.potSize)}</span>`;
+      }
+
+      return `
+        <div class="timeline-node">
+          <div class="timeline-pin ${t.border}">
+            <span>${t.icon}</span>
+          </div>
+
+          <div class="app-card p-3.5 space-y-2">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-white">${t.label}</span>
+                  ${dayAtLog != null ? `<span class="rounded bg-canna-950 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-400 border border-emerald-500/20">Día ${dayAtLog}</span>` : ''}
+                </div>
+                <div class="font-mono text-[11px] text-slate-400 mt-0.5">
+                  ${formatPrettyDate(log.dateTime)} <span class="text-slate-500">(${timeAgo(log.dateTime)})</span>
+                </div>
+              </div>
+
+              <button type="button" onclick="GrowlogsModule.deleteLogEntry('${log.id}')"
+                class="text-slate-500 hover:text-red-400 p-1 text-xs transition" title="Eliminar este evento">
+                ✕
+              </button>
+            </div>
+
+            ${metricsBadges ? `<div class="flex flex-wrap gap-1.5 text-[11px] pt-1">${metricsBadges}</div>` : ''}
+
+            ${log.notes ? `<p class="text-xs text-slate-200 leading-relaxed whitespace-pre-line">${esc(log.notes)}</p>` : ''}
+
+            ${log.photo ? `
+              <div class="pt-1">
+                <img src="${log.photo}" alt="Foto del evento"
+                  onclick="GrowlogsModule.openLightbox('${log.photo}', '${esc(t.label)} · Día ${dayAtLog}')"
+                  class="h-28 w-44 object-cover rounded-xl border border-emerald-500/20 cursor-pointer hover:border-emerald-400 transition" />
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  async deleteLogEntry(logId) {
+    if (!confirm('¿Eliminar este registro de la bitácora?')) return;
+    await Storage.deleteLog(logId);
+    await this.renderTimeline();
+    showToast('Registro eliminado');
+  },
+
+  /* Formulario Modal de Evento */
+  openLogModal(initialType = 'riego_agua') {
+    if (!this.activePlantId) {
+      showToast('Seleccioná una planta primero');
+      return;
+    }
+    const plant = this.plants.find((p) => p.id === this.activePlantId);
+    $('modal-log-plant-badge').textContent = plant ? `${plant.name} · ${STAGES[plant.stage].label}` : 'Registro';
+    $('input-log-datetime').value = nowLocalDateTime();
+    this.pendingPhotoData = null;
+    $('input-log-photo').value = '';
+    $('log-photo-preview-box').classList.add('hidden');
+    $('input-log-notes').value = '';
+
+    this.setLogModalType(initialType);
+    $('modal-log-entry').classList.remove('hidden');
+    $('modal-log-entry').classList.add('flex');
+  },
+
+  closeLogModal() {
+    $('modal-log-entry').classList.add('hidden');
+    $('modal-log-entry').classList.remove('flex');
+  },
+
+  setLogModalType(type) {
+    $('input-log-type').value = type;
+    document.querySelectorAll('.log-type-btn').forEach((btn) => {
+      const active = btn.dataset.type === type;
+      btn.className = `log-type-btn rounded-xl border p-2 text-center text-xs font-bold transition ${
+        active
+          ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+          : 'bg-canna-950 border-emerald-500/10 text-slate-400 hover:text-white'
+      }`;
+    });
+
+    const dyn = $('dynamic-log-fields');
+    if (type === 'riego_agua') {
+      dyn.innerHTML = `
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Litros de Agua</label>
+            <input id="log-liters" type="number" step="0.25" value="2.0" class="touch-input w-full font-mono text-xs" required />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">pH (Opcional)</label>
+            <input id="log-ph" type="number" step="0.1" placeholder="6.2" class="touch-input w-full font-mono text-xs" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">EC (Opcional)</label>
+            <input id="log-ec" type="number" step="0.1" placeholder="0.4" class="touch-input w-full font-mono text-xs" />
+          </div>
+        </div>
+      `;
+    } else if (type === 'riego_nutrientes') {
+      dyn.innerHTML = `
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Litros</label>
+            <input id="log-liters" type="number" step="0.25" value="2.0" class="touch-input w-full font-mono text-xs" required />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">pH Entrada</label>
+            <input id="log-ph" type="number" step="0.1" placeholder="6.2" class="touch-input w-full font-mono text-xs" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">EC (mS/cm)</label>
+            <input id="log-ec" type="number" step="0.1" placeholder="1.2" class="touch-input w-full font-mono text-xs" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-300 mb-1">Productos y Dosis</label>
+          <input id="log-products" type="text" placeholder="Ej: Top Bloom 3ml/L + Top Candy 2ml/L" class="touch-input w-full text-xs" />
+        </div>
+      `;
+    } else if (type === 'foliar') {
+      dyn.innerHTML = `
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Tratamiento Foliar</label>
+            <select id="log-foliar-type" class="touch-input w-full text-xs">
+              <option value="Aceite de Neem + Jabón Potásico">🌿 Neem + Jabón Potásico</option>
+              <option value="Bacillus thuringiensis (Bt)">🐛 Bacillus thuringiensis</option>
+              <option value="Jabón Potásico solo">🧼 Jabón Potásico solo</option>
+              <option value="Bioestimulante foliar (Algas / Aminoácidos)">🍃 Algas / Bioestimulante</option>
+              <option value="Otro foliar">🧪 Otro tratamiento</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Volumen Pulverizador</label>
+            <input id="log-liters" type="number" step="0.5" value="1.0" class="touch-input w-full font-mono text-xs" />
+          </div>
+        </div>
+      `;
+    } else if (type === 'poda') {
+      dyn.innerHTML = `
+        <div>
+          <label class="block text-[11px] font-bold text-slate-300 mb-1">Tipo de Intervención</label>
+          <select id="log-prune-type" class="touch-input w-full text-xs">
+            <option value="Poda Apical">Poda Apical (Corte del ápice central)</option>
+            <option value="Poda FIM">Poda FIM (80% del brote)</option>
+            <option value="Defoliación de bajos (Lollipop)">Defoliación de bajos (Lollipop)</option>
+            <option value="LST (Low Stress Training)">LST / Guiado de ramas</option>
+            <option value="Corte de esquejes">Corte de esquejes</option>
+          </select>
+        </div>
+      `;
+    } else if (type === 'transplante') {
+      dyn.innerHTML = `
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Nueva Maceta</label>
+            <input id="log-pot-size" type="text" placeholder="Ej: 15 L Geotextil" class="touch-input w-full text-xs" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Sustrato / Enraizante</label>
+            <input id="log-substrate" type="text" placeholder="Ej: Growmix + Micorrizas" class="touch-input w-full text-xs" />
+          </div>
+        </div>
+      `;
+    } else {
+      dyn.innerHTML = '';
+    }
+  },
+
+  async handleLogSubmit(e) {
+    e.preventDefault();
+    if (!this.activePlantId) return;
+
+    const type = $('input-log-type').value;
+    const dateTime = $('input-log-datetime').value;
+    const notes = $('input-log-notes').value.trim();
+
+    const metrics = {};
+    if ($('log-liters')) metrics.liters = parseFloat($('log-liters').value) || undefined;
+    if ($('log-ph')) metrics.ph = parseFloat($('log-ph').value) || undefined;
+    if ($('log-ec')) metrics.ec = parseFloat($('log-ec').value) || undefined;
+    if ($('log-products')) metrics.products = $('log-products').value.trim() || undefined;
+    if ($('log-foliar-type')) metrics.foliarType = $('log-foliar-type').value;
+    if ($('log-prune-type')) metrics.pruneType = $('log-prune-type').value;
+    if ($('log-pot-size')) metrics.potSize = $('log-pot-size').value.trim() || undefined;
+
+    const newLog = {
+      id: 'log-' + Date.now(),
+      plantId: this.activePlantId,
+      type,
+      dateTime: new Date(dateTime).toISOString(),
+      notes,
+      metrics,
+      photo: this.pendingPhotoData || undefined
+    };
+
+    await Storage.saveLog(newLog);
+    this.closeLogModal();
+    await this.renderTimeline();
+    showToast('✅ Evento registrado en bitácora');
+  },
+
+  /* Formulario de Planta */
+  openPlantModal(editPlant = null) {
+    $('input-plant-id').value = editPlant ? editPlant.id : '';
+    $('modal-plant-title').textContent = editPlant ? 'Editar Planta' : 'Nueva Planta';
+    $('input-plant-name').value = editPlant ? editPlant.name : '';
+    $('input-plant-strain').value = editPlant ? editPlant.strain : '';
+    $('select-plant-type').value = editPlant ? editPlant.type : 'fotoperiodica';
+    $('select-plant-medium').value = editPlant ? editPlant.medium : 'sustrato';
+    $('input-plant-germ-date').value = editPlant ? editPlant.germDate : todayDateStr();
+    $('select-plant-stage').value = editPlant ? editPlant.stage : 'vegetativo';
+
+    if (editPlant && editPlant.coverPhoto) {
+      $('plant-cover-preview-img').src = editPlant.coverPhoto;
+      $('plant-cover-preview-box').classList.remove('hidden');
+      $('input-plant-cover-photo').dataset.base64 = editPlant.coverPhoto;
+    } else {
+      $('plant-cover-preview-box').classList.add('hidden');
+      delete $('input-plant-cover-photo').dataset.base64;
+    }
+
+    $('modal-plant-form').classList.remove('hidden');
+    $('modal-plant-form').classList.add('flex');
+  },
+
+  closePlantModal() {
+    $('modal-plant-form').classList.add('hidden');
+    $('modal-plant-form').classList.remove('flex');
+  },
+
+  async handlePlantSubmit(e) {
+    e.preventDefault();
+    const id = $('input-plant-id').value || 'plant-' + Date.now();
+    const name = $('input-plant-name').value.trim();
+    const strain = $('input-plant-strain').value.trim();
+    const type = $('select-plant-type').value;
+    const medium = $('select-plant-medium').value;
+    const germDate = $('input-plant-germ-date').value;
+    const stage = $('select-plant-stage').value;
+    const coverPhoto = $('input-plant-cover-photo').dataset.base64 || undefined;
+
+    const plant = {
+      id,
+      name,
+      strain,
+      type,
+      medium,
+      germDate,
+      stage,
+      coverPhoto,
+      createdAt: new Date().toISOString()
+    };
+
+    await Storage.savePlant(plant);
+    this.closePlantModal();
+    await this.loadPlants();
+
+    if (this.activePlantId === id) {
+      this.renderPlantHero(plant);
+    }
+    showToast(id === $('input-plant-id').value ? 'Planta actualizada' : '🌱 Planta creada con éxito');
+  },
+
+  openLightbox(src, caption) {
+    $('lightbox-img').src = src;
+    $('lightbox-caption').textContent = caption || '';
+    $('lightbox-modal').classList.remove('hidden');
+    $('lightbox-modal').classList.add('flex');
+  }
+};
+
+/* ==========================================================================
+   5. MÓDULO CALCULADORA DE FERTILIZANTES & MODO DE CULTIVO
+   ========================================================================== */
 const BRANDS = {
   topcrop: {
     name: 'Top Crop',
     type: 'Bio-mineral',
-    icon: '🌿',
-    mineral: false,
-    mixOrder: 'Agua desclorada (reposada 24 h) → Deeper Underground → Top Veg / Top Bloom → Big One → Top Candy → Top Bud. Mezclá entre cada producto y medí el pH al final.',
-    tip: 'Línea pensada para tierra. En coco empezá al 75% de la dosis.',
     products: [
-      { name: 'Deeper Underground', role: 'Enraizante · húmicos', unit: 'ml', doses: { plantula: 1.5, vegetativo: 1, transicion: 0, flora_temprana: 0, flora_tardia: 0 }, note: 'Riegos iniciales y post-trasplante' },
-      { name: 'Top Veg', role: 'Base de crecimiento (N)', unit: 'ml', doses: { plantula: 1, vegetativo: 3, transicion: 2, flora_temprana: 0, flora_tardia: 0 }, note: 'Subir progresivo de 2 a 4 ml/L' },
-      { name: 'Top Bloom', role: 'Base de floración (P-K)', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 2, flora_temprana: 3, flora_tardia: 4 }, note: 'Retirar en el lavado final' },
-      { name: 'Big One', role: 'Estimulante de floración', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 2, flora_temprana: 2, flora_tardia: 0 }, note: 'Riego o foliar en el cambio a 12/12' },
-      { name: 'Top Candy', role: 'Azúcares · sabor y aroma', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 1, flora_temprana: 2, flora_tardia: 2 }, note: 'Constante toda la flora' },
-      { name: 'Top Bud', role: 'Engorde PK', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 0, flora_temprana: 0, flora_tardia: 1 }, note: 'Últimas semanas antes del lavado' }
+      { name: 'Deeper Underground', role: 'Enraizante', unit: 'ml', doses: { plantula: 1.5, vegetativo: 1, transicion: 0, flora_temprana: 0, flora_tardia: 0 } },
+      { name: 'Top Veg', role: 'Base Crecimiento (N)', unit: 'ml', doses: { plantula: 1, vegetativo: 3, transicion: 2, flora_temprana: 0, flora_tardia: 0 } },
+      { name: 'Top Bloom', role: 'Base Floración (P-K)', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 2, flora_temprana: 3, flora_tardia: 4 } },
+      { name: 'Big One', role: 'Bioestimulante', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 2, flora_temprana: 2, flora_tardia: 0 } },
+      { name: 'Top Candy', role: 'Azúcares & Resina', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 1, flora_temprana: 2, flora_tardia: 2 } },
+      { name: 'Top Bud', role: 'Engorde PK', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 0, flora_temprana: 0, flora_tardia: 1 } }
     ]
   },
   namaste: {
     name: 'Namaste',
     type: 'Orgánica',
-    icon: '🍃',
-    mineral: false,
-    mixOrder: 'Agua sin cloro → disolvé los polvos (Amazonia Roots / Trico+) y dejá reposar 2–4 h para activar la microvida → sumá los líquidos (Oro Negro / Flora Booster). Evitá ácidos fuertes para corregir pH con microorganismos vivos.',
-    tip: 'Aplicación semanal: intercalá riegos solo con agua sin cloro.',
     products: [
-      { name: 'Amazonia Roots', role: 'Micorrizas + Trichoderma', unit: 'g', doses: { plantula: 1, vegetativo: 1, transicion: 0, flora_temprana: 0, flora_tardia: 0 }, note: 'También 1 cda. en el pozo al trasplantar' },
-      { name: 'Oro Negro', role: 'Húmicos + algas · crecimiento', unit: 'ml', doses: { plantula: 1, vegetativo: 2, transicion: 2, flora_temprana: 0, flora_tardia: 0 }, note: 'Hasta las 2 primeras semanas de flora' },
-      { name: 'Trico+', role: 'Melazas + yuca · resina', unit: 'g', doses: { plantula: 0, vegetativo: 0, transicion: 0, flora_temprana: 1, flora_tardia: 1 }, note: 'Reposar la mezcla antes de regar' },
-      { name: 'Flora Booster', role: 'PK + aminoácidos · engorde', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 0, flora_temprana: 2, flora_tardia: 3 }, note: 'Desde sem 3-4 de flora · máx. 4 aplicaciones (g si es polvo)' }
+      { name: 'Amazonia Roots', role: 'Micorrizas & Tricodermas', unit: 'g', doses: { plantula: 1, vegetativo: 1, transicion: 0, flora_temprana: 0, flora_tardia: 0 } },
+      { name: 'Oro Negro', role: 'Húmicos & Crecimiento', unit: 'ml', doses: { plantula: 1, vegetativo: 2, transicion: 2, flora_temprana: 0, flora_tardia: 0 } },
+      { name: 'Trico+', role: 'Melazas & Resina', unit: 'g', doses: { plantula: 0, vegetativo: 0, transicion: 0, flora_temprana: 1, flora_tardia: 1 } },
+      { name: 'Flora Booster', role: 'PK Potenciador', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 0, flora_temprana: 2, flora_tardia: 3 } }
     ]
   },
   kawsay: {
     name: 'Kawsay',
     type: 'Mineral',
-    icon: '⚗️',
-    mineral: true,
-    mixOrder: 'Agua → Base A (mezclar) → Base B (mezclar) → Vege o Bloom → K9. Nunca juntes Base A y Base B concentradas: precipitan y se inutilizan.',
-    tip: 'En coco/hidro las bases se refuerzan automáticamente (+20%).',
     products: [
-      { name: 'Base A', role: 'Calcio + nitrógeno', unit: 'ml', base: true, doses: { plantula: 0.5, vegetativo: 1.5, transicion: 1.5, flora_temprana: 2, flora_tardia: 2 }, note: 'Siempre primero, bien disuelta' },
-      { name: 'Base B', role: 'Magnesio + micronutrientes', unit: 'ml', base: true, doses: { plantula: 0.5, vegetativo: 1.5, transicion: 1.5, flora_temprana: 2, flora_tardia: 2 }, note: 'Después de la Base A' },
-      { name: 'Vege', role: 'NPK de crecimiento', unit: 'ml', doses: { plantula: 0.5, vegetativo: 1.5, transicion: 1, flora_temprana: 0, flora_tardia: 0 }, note: 'Retirar al consolidar la flora' },
-      { name: 'Bloom', role: 'Fósforo + potasio', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 1, flora_temprana: 2, flora_tardia: 2.5 }, note: 'Pico en el engorde' },
-      { name: 'K9', role: 'Bioestimulante · terpenos', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 0, flora_temprana: 0.5, flora_tardia: 0.5 }, note: 'Inicio de flora, día 15-20 y refuerzo sem 6' }
+      { name: 'Base A', role: 'Calcio + Nitrógeno', unit: 'ml', doses: { plantula: 0.5, vegetativo: 1.5, transicion: 1.5, flora_temprana: 2, flora_tardia: 2 } },
+      { name: 'Base B', role: 'Magnesio + Micros', unit: 'ml', doses: { plantula: 0.5, vegetativo: 1.5, transicion: 1.5, flora_temprana: 2, flora_tardia: 2 } },
+      { name: 'Vege', role: 'NPK Vegetativo', unit: 'ml', doses: { plantula: 0.5, vegetativo: 1.5, transicion: 1, flora_temprana: 0, flora_tardia: 0 } },
+      { name: 'Bloom', role: 'Fósforo + Potasio', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 1, flora_temprana: 2, flora_tardia: 2.5 } }
     ]
   },
   advanced: {
     name: 'Advanced Nutrients',
-    type: 'Mineral pH Perfect',
-    icon: '🧬',
-    mineral: true,
-    mixOrder: 'Agua → pH Perfect Micro → Grow → Bloom → aditivos (Voodoo Juice, B-52, Big Bud, Bud Candy, Overdrive). pH Perfect autorregula entre 5.5–6.3, igual verificá con medidor.',
-    tip: 'Bases 1:1:1. En coco/hidro se refuerzan automáticamente (+20%, tope 4 ml/L).',
+    type: 'pH Perfect Mineral',
     products: [
-      { name: 'pH Perfect Micro', role: 'Base · micronutrientes', unit: 'ml', base: true, doses: { plantula: 1, vegetativo: 3, transicion: 4, flora_temprana: 4, flora_tardia: 4 }, note: 'Siempre primero' },
-      { name: 'pH Perfect Grow', role: 'Base · nitrógeno', unit: 'ml', base: true, doses: { plantula: 1, vegetativo: 3, transicion: 4, flora_temprana: 4, flora_tardia: 4 }, note: 'Misma dosis que Micro' },
-      { name: 'pH Perfect Bloom', role: 'Base · fósforo/potasio', unit: 'ml', base: true, doses: { plantula: 1, vegetativo: 3, transicion: 4, flora_temprana: 4, flora_tardia: 4 }, note: 'Misma dosis que Micro' },
-      { name: 'Voodoo Juice', role: 'Microbios de raíz', unit: 'ml', doses: { plantula: 2, vegetativo: 2, transicion: 2, flora_temprana: 0, flora_tardia: 0 }, note: 'Sem 1-2 de veg y de flora' },
-      { name: 'B-52', role: 'Vitaminas B · antiestrés', unit: 'ml', doses: { plantula: 0, vegetativo: 2, transicion: 2, flora_temprana: 2, flora_tardia: 0 }, note: 'Hasta la sem 6 de flora' },
-      { name: 'Big Bud', role: 'Booster de floración', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 0, flora_temprana: 2, flora_tardia: 0 }, note: 'Sem 2-5 de flora' },
-      { name: 'Bud Candy', role: 'Carbohidratos · sabor', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 2, flora_temprana: 2, flora_tardia: 2 }, note: 'Toda la flora' },
-      { name: 'Overdrive', role: 'Finalizador', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 0, flora_temprana: 0, flora_tardia: 2 }, note: 'Últimas 2 semanas antes del lavado' }
+      { name: 'pH Perfect Micro', role: 'Base Micronutrientes', unit: 'ml', doses: { plantula: 1, vegetativo: 3, transicion: 4, flora_temprana: 4, flora_tardia: 4 } },
+      { name: 'pH Perfect Grow', role: 'Base Nitrógeno', unit: 'ml', doses: { plantula: 1, vegetativo: 3, transicion: 4, flora_temprana: 4, flora_tardia: 4 } },
+      { name: 'pH Perfect Bloom', role: 'Base Fósforo/Potasio', unit: 'ml', doses: { plantula: 1, vegetativo: 3, transicion: 4, flora_temprana: 4, flora_tardia: 4 } },
+      { name: 'Big Bud', role: 'Booster de Flores', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 0, flora_temprana: 2, flora_tardia: 0 } },
+      { name: 'Bud Candy', role: 'Carbohidratos', unit: 'ml', doses: { plantula: 0, vegetativo: 0, transicion: 2, flora_temprana: 2, flora_tardia: 2 } }
     ]
   }
 };
 
-/* Latitudes de referencia para el cálculo del fotoperíodo */
-const REGIONS = {
-  amba: { label: 'Buenos Aires / AMBA', lat: -34.6, tip: '🌧️ <strong>AMBA / Litoral:</strong> clima húmedo. En marzo-abril las lluvias y rocíos elevan el riesgo de <em>Botrytis</em>: elegí genéticas de flora corta, podá para airear y priorizá Bt contra isocas desde enero. Heladas tardías posibles hasta mediados de octubre.' },
-  centro: { label: 'Centro (Cba/SF/ER)', lat: -31.4, tip: '🌾 <strong>Centro:</strong> veranos calurosos con tormentas fuertes y granizo puntual. Tené malla antigranizo lista para febrero-marzo. Alta presión de isoca y chinche verde en zona agrícola: Bt cada 10 días en flora.' },
-  cuyo: { label: 'Cuyo', lat: -32.9, tip: '☀️ <strong>Cuyo:</strong> clima árido y gran amplitud térmica (ideal para resina). Atención a la arañuela roja con calor seco: Neem + Jabón potásico cada 10 días en vegetativo y mojar el envés. Riego más frecuente; acolchado (mulch) recomendado.' },
-  norte: { label: 'NOA / NEA', lat: -26.8, tip: '🌴 <strong>Norte:</strong> temporada más larga y días algo más cortos en verano: la flora se dispara antes. Humedad alta en el NEA: priorizá ventilación, Trichoderma en raíz y controles cada 10 días.' },
-  patagonia: { label: 'Patagonia', lat: -40.8, tip: '🏔️ <strong>Patagonia:</strong> temporada corta, viento seco y heladas tempranas desde fines de marzo. Usá genéticas de flora rápida o autos, germiná en octubre bajo cobertura y planificá cosechar en marzo.' }
-};
-
-/* Categorías lunares agrícolas */
-const LUNAR_CATS = {
-  germinacion: {
-    label: 'Cuarto Creciente / Luna Llena', task: 'Germinación & Foliares', icon: '🌱',
-    chip: 'bg-lime-500/15 text-lime-300 border-lime-400/35',
-    cell: 'bg-lime-500/10 border-lime-400/35',
-    dot: 'bg-lime-400', hex: '#a3e635',
-    why: 'La savia asciende y la luz nocturna aumenta: máxima actividad en la parte aérea.',
-    tasks: ['Germinar semillas y sembrar', 'Fertilizantes foliares (algas, aminoácidos)', 'Riegos con abono de crecimiento']
-  },
-  podas: {
-    label: 'Cuarto Menguante', task: 'Trasplantes, Podas & Esquejes', icon: '✂️',
-    chip: 'bg-sky-500/15 text-sky-300 border-sky-400/35',
-    cell: 'bg-sky-500/10 border-sky-400/35',
-    dot: 'bg-sky-400', hex: '#38bdf8',
-    why: 'La savia desciende hacia las raíces: menos sangrado, cicatrización rápida y mejor enraizamiento.',
-    tasks: ['Trasplantes a maceta final o suelo', 'Poda apical / FIM y defoliación', 'Cortar esquejes de plantas madre']
-  },
-  cosecha: {
-    label: 'Luna Nueva', task: 'Cosecha & Plagas de raíz', icon: '🌾',
-    chip: 'bg-amber-500/15 text-amber-300 border-amber-400/35',
-    cell: 'bg-amber-500/10 border-amber-400/35',
-    dot: 'bg-amber-400', hex: '#fbbf24',
-    why: 'Menor retención de savia en la parte aérea: secado más parejo y menos riesgo de hongos.',
-    tasks: ['Cosecha (corte) de plantas maduras', 'Control de plagas de raíz (larvas, mosquitas)', 'Descanso: sin podas ni trasplantes']
-  },
-  neutral_creciente: {
-    label: 'Creciente joven', task: 'Mantenimiento', icon: '💧',
-    chip: 'bg-emerald-500/10 text-emerald-300 border-emerald-400/25',
-    cell: 'bg-botanic-950/60 border-emerald-500/10',
-    dot: 'bg-emerald-500/60', hex: '#34d399',
-    why: 'Savia empezando a subir. Buen momento para preparar la próxima ventana.',
-    tasks: ['Riegos base', 'Preparar sustrato, macetas y semillas', 'Monitoreo de plagas con lupa']
-  },
-  neutral_menguante: {
-    label: 'Gibosa menguante', task: 'Mantenimiento', icon: '💧',
-    chip: 'bg-emerald-500/10 text-emerald-300 border-emerald-400/25',
-    cell: 'bg-botanic-950/60 border-emerald-500/10',
-    dot: 'bg-emerald-500/60', hex: '#34d399',
-    why: 'Savia comenzando a descender. Favorece el trabajo radicular.',
-    tasks: ['Riegos con enraizantes / microbiología', 'Afilar y desinfectar tijeras', 'Planificar podas del Cuarto Menguante']
-  }
-};
-
-const PHASE_NAMES = { new: 'Luna Nueva', fq: 'Cuarto Creciente', full: 'Luna Llena', lq: 'Cuarto Menguante' };
-
-/* Tratamientos preventivos (dosis por litro) */
-const PEST_DOSES = { neem: 2, soap: 5, bt: 1 }; // ml/L, ml/L, g/L
-
-/* ==========================================================================
-   2. ESTADO + PERSISTENCIA
-   ========================================================================== */
-const DEFAULT_STATE = {
-  mode: 'outdoor',
+const CalculatorModule = {
   liters: 5,
   brand: 'topcrop',
   stage: 'vegetativo',
-  indoorWeek: 3,
-  vegWeeks: 4,
-  flowerWeeks: 9,
-  cropName: '',
-  region: 'amba',
-  substrate: 'sustrato',
-  doseFactor: 1,
-  pestLast: null, // índice de día (AR)
-  pestInterval: 12,
-  sprayer: 1,
-  lunarFilter: 'all'
-};
+  mode: 'outdoor',
 
-let state = { ...DEFAULT_STATE };
-const ui = { lunarYear: 2026, lunarMonth: 0, lunarSelectedDi: null };
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) state = { ...DEFAULT_STATE, ...JSON.parse(raw) };
-  } catch (e) { /* almacenamiento no disponible */ }
-}
-function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* noop */ }
-}
-
-/* ==========================================================================
-   3. UTILIDADES
-   ========================================================================== */
-const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-/** Índice de día calendario en hora Argentina para un timestamp UTC. */
-const arDayIndex = (ms) => Math.floor((ms - TZ_OFFSET_MS) / DAY_MS);
-const diFromYMD = (y, m, d) => Math.floor(Date.UTC(y, m, d) / DAY_MS);
-const todayDi = () => arDayIndex(Date.now());
-function partsFromDi(di) {
-  const d = new Date(di * DAY_MS);
-  return { y: d.getUTCFullYear(), m: d.getUTCMonth(), d: d.getUTCDate(), dow: d.getUTCDay() };
-}
-function arTime(ms) {
-  const d = new Date(ms - TZ_OFFSET_MS);
-  return String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0');
-}
-function fmtDate(di, withDow = true) {
-  const p = partsFromDi(di);
-  return (withDow ? DOW_SHORT[p.dow] + ' ' : '') + p.d + ' ' + MONTHS_SHORT[p.m];
-}
-function fmtDateFull(di) {
-  const p = partsFromDi(di);
-  return String(p.d).padStart(2, '0') + '/' + String(p.m + 1).padStart(2, '0') + '/' + p.y;
-}
-function diToInput(di) {
-  const p = partsFromDi(di);
-  return p.y + '-' + String(p.m + 1).padStart(2, '0') + '-' + String(p.d).padStart(2, '0');
-}
-function inputToDi(v) {
-  const [y, m, d] = v.split('-').map(Number);
-  return diFromYMD(y, m - 1, d);
-}
-function fmtNum(v) {
-  const digits = v < 1 ? 2 : v < 10 ? 1 : 0;
-  return v.toLocaleString('es-AR', { maximumFractionDigits: digits });
-}
-function relDays(n) {
-  if (n === 0) return 'hoy';
-  if (n === 1) return 'mañana';
-  if (n === -1) return 'ayer';
-  return n > 0 ? 'en ' + n + ' días' : 'hace ' + Math.abs(n) + ' días';
-}
-
-let toastTimer = null;
-function toast(msg) {
-  const el = $('app-toast');
-  $('app-toast-text').textContent = msg;
-  el.style.opacity = '1';
-  el.style.transform = 'translate(-50%, 6px)';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    el.style.opacity = '0';
-    el.style.transform = 'translate(-50%, 0)';
-  }, 2200);
-}
-
-/** Horas de luz (fotoperíodo) para una latitud y día del año. */
-function dayLengthHours(lat, di) {
-  const p = partsFromDi(di);
-  const n = di - diFromYMD(p.y, 0, 1) + 1;
-  const rad = Math.PI / 180;
-  const decl = 23.44 * Math.sin(2 * Math.PI * (284 + n) / 365) * rad;
-  const phi = lat * rad;
-  const cosH = (Math.sin(-0.833 * rad) - Math.sin(phi) * Math.sin(decl)) / (Math.cos(phi) * Math.cos(decl));
-  const H = Math.acos(Math.max(-1, Math.min(1, cosH))) / rad;
-  return (2 * H) / 15;
-}
-const fmtHours = (h) => Math.floor(h) + ' h ' + String(Math.round((h % 1) * 60)).padStart(2, '0') + ' min';
-
-/* ==========================================================================
-   4. MOTOR LUNAR (Jean Meeus, Astronomical Algorithms, cap. 49)
-   Precisión ~1-2 minutos. Horario convertido a H.O.A. (UTC-3).
-   ========================================================================== */
-const LunarEngine = (() => {
-  const rad = Math.PI / 180;
-  const sin = Math.sin, cos = Math.cos;
-  const TYPES = ['new', 'fq', 'full', 'lq'];
-
-  function phaseJDE(k, phase) {
-    const kk = k + phase * 0.25;
-    const T = kk / 1236.85, T2 = T * T, T3 = T2 * T, T4 = T3 * T;
-    const jde = 2451550.09766 + 29.530588861 * kk + 0.00015437 * T2 - 0.00000015 * T3 + 0.00000000073 * T4;
-    const E = 1 - 0.002516 * T - 0.0000074 * T2;
-    const M = (2.5534 + 29.1053567 * kk - 0.0000014 * T2 - 0.00000011 * T3) * rad;
-    const Mp = (201.5643 + 385.81693528 * kk + 0.0107582 * T2 + 0.00001238 * T3 - 0.000000058 * T4) * rad;
-    const F = (160.7108 + 390.67050284 * kk - 0.0016118 * T2 - 0.00000227 * T3 + 0.000000011 * T4) * rad;
-    const Om = (124.7746 - 1.56375588 * kk + 0.0020672 * T2 + 0.00000215 * T3) * rad;
-    let c;
-    if (phase === 0 || phase === 2) {
-      const a = phase === 0
-        ? [-0.4072, 0.17241, 0.01608, 0.01039, 0.00739, -0.00514, 0.00208]
-        : [-0.40614, 0.17302, 0.01614, 0.01043, 0.00734, -0.00515, 0.00209];
-      c = a[0] * sin(Mp) + a[1] * E * sin(M) + a[2] * sin(2 * Mp) + a[3] * sin(2 * F)
-        + a[4] * E * sin(Mp - M) + a[5] * E * sin(Mp + M) + a[6] * E * E * sin(2 * M)
-        - 0.00111 * sin(Mp - 2 * F) - 0.00057 * sin(Mp + 2 * F) + 0.00056 * E * sin(2 * Mp + M)
-        - 0.00042 * sin(3 * Mp) + 0.00042 * E * sin(M + 2 * F) + 0.00038 * E * sin(M - 2 * F)
-        - 0.00024 * E * sin(2 * Mp - M) - 0.00017 * sin(Om) - 0.00007 * sin(Mp + 2 * M)
-        + 0.00004 * sin(2 * Mp - 2 * F) + 0.00004 * sin(3 * M) + 0.00003 * sin(Mp + M - 2 * F)
-        + 0.00003 * sin(2 * Mp + 2 * F) - 0.00003 * sin(Mp + M + 2 * F) + 0.00003 * sin(Mp - M + 2 * F)
-        - 0.00002 * sin(Mp - M - 2 * F) - 0.00002 * sin(3 * Mp + M) + 0.00002 * sin(4 * Mp);
-    } else {
-      c = -0.62801 * sin(Mp) + 0.17172 * E * sin(M) - 0.01183 * E * sin(Mp + M) + 0.00862 * sin(2 * Mp)
-        + 0.00804 * sin(2 * F) + 0.00454 * E * sin(Mp - M) + 0.00204 * E * E * sin(2 * M)
-        - 0.0018 * sin(Mp - 2 * F) - 0.0007 * sin(Mp + 2 * F) - 0.0004 * sin(3 * Mp)
-        - 0.00034 * E * sin(2 * Mp - M) + 0.00032 * E * sin(M + 2 * F) + 0.00032 * E * sin(M - 2 * F)
-        - 0.00028 * E * E * sin(Mp + 2 * M) + 0.00027 * E * sin(2 * Mp + M) - 0.00017 * sin(Om)
-        - 0.00005 * sin(Mp - M - 2 * F) + 0.00004 * sin(2 * Mp + 2 * F) - 0.00004 * sin(Mp + M + 2 * F)
-        + 0.00004 * sin(Mp - 2 * M) + 0.00003 * sin(Mp + M - 2 * F) + 0.00003 * sin(3 * M)
-        + 0.00002 * sin(2 * Mp - 2 * F) + 0.00002 * sin(Mp - M + 2 * F) - 0.00002 * sin(3 * Mp + M);
-      const W = 0.00306 - 0.00038 * E * cos(M) + 0.00026 * cos(Mp) - 0.00002 * cos(Mp - M)
-        + 0.00002 * cos(Mp + M) + 0.00002 * cos(2 * F);
-      c += phase === 1 ? W : -W;
-    }
-    const A = [299.77 + 0.107408 * kk - 0.009173 * T2, 251.88 + 0.016321 * kk, 251.83 + 26.651886 * kk,
-      349.42 + 36.412478 * kk, 84.66 + 18.206239 * kk, 141.74 + 53.303771 * kk, 207.14 + 2.453732 * kk,
-      154.84 + 7.30686 * kk, 34.52 + 27.261239 * kk, 207.19 + 0.121824 * kk, 291.34 + 1.844379 * kk,
-      161.72 + 24.198154 * kk, 239.56 + 25.513099 * kk, 331.55 + 3.592518 * kk];
-    const AC = [325, 165, 164, 126, 110, 62, 60, 56, 47, 42, 40, 37, 35, 23];
-    let pl = 0;
-    for (let i = 0; i < 14; i++) pl += AC[i] * 1e-6 * sin(A[i] * rad);
-    return jde + c + pl;
-  }
-
-  const DELTA_T_DAYS = 70 / 86400; // TT − UT aprox. 2026-2027
-  const jdToMs = (jd) => (jd - 2440587.5) * DAY_MS;
-
-  function buildEvents(fromYear, toYear) {
-    const kStart = Math.floor((fromYear - 2000) * 12.3685) - 1;
-    const kEnd = Math.ceil((toYear + 1 - 2000) * 12.3685) + 1;
-    const out = [];
-    for (let k = kStart; k <= kEnd; k++) {
-      for (let p = 0; p < 4; p++) {
-        const ms = jdToMs(phaseJDE(k, p) - DELTA_T_DAYS);
-        out.push({ type: TYPES[p], ms, di: arDayIndex(ms) });
-      }
-    }
-    return out.sort((a, b) => a.ms - b.ms);
-  }
-
-  // Cubrimos de 2025 a 2028 para que las ventanas de borde (dic/ene) funcionen.
-  const events = buildEvents(2025, 2028);
-  const byDi = new Map(events.map((e) => [e.di, e]));
-  const news = events.filter((e) => e.type === 'new');
-
-  function lastEventIndexOnOrBefore(di) {
-    let lo = 0, hi = events.length - 1, ans = -1;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      if (events[mid].di <= di) { ans = mid; lo = mid + 1; } else hi = mid - 1;
-    }
-    return ans;
-  }
-
-  /** Información astronómica del día (al mediodía AR). */
-  function info(di) {
-    const ms = di * DAY_MS + TZ_OFFSET_MS + 12 * 3600 * 1000;
-    let prev = news[0], next = news[news.length - 1];
-    for (let i = 0; i < news.length - 1; i++) {
-      if (news[i].ms <= ms && news[i + 1].ms > ms) { prev = news[i]; next = news[i + 1]; break; }
-    }
-    const frac = (ms - prev.ms) / (next.ms - prev.ms);
-    const illum = (1 - Math.cos(2 * Math.PI * frac)) / 2;
-    const age = frac * ((next.ms - prev.ms) / DAY_MS);
-    const exact = byDi.get(di) || null;
-    let name;
-    if (exact) name = PHASE_NAMES[exact.type];
-    else if (frac < 0.25) name = 'Creciente cóncava';
-    else if (frac < 0.5) name = 'Gibosa creciente';
-    else if (frac < 0.75) name = 'Gibosa menguante';
-    else name = 'Menguante convexa';
-    return { frac, illum, age, waxing: frac < 0.5, exact, name, category: category(di) };
-  }
-
-  /** Clasificación agrícola del día. */
-  function category(di) {
-    // Ventana de Luna Nueva: 2 días antes hasta 1 día después
-    for (const n of news) {
-      if (di >= n.di - 2 && di <= n.di + 1) return 'cosecha';
-      if (n.di - 2 > di) break;
-    }
-    const idx = lastEventIndexOnOrBefore(di);
-    if (idx < 0) return 'neutral_creciente';
-    const e = events[idx];
-    if (e.type === 'fq') return 'germinacion';
-    if (e.type === 'full') return di <= e.di + 2 ? 'germinacion' : 'neutral_menguante';
-    if (e.type === 'lq') return 'podas';
-    return 'neutral_creciente';
-  }
-
-  /** Ventana (actual o próxima) de una categoría a partir de un día. */
-  function nextWindow(cat, fromDi, horizon = 60) {
-    for (let d = fromDi; d < fromDi + horizon; d++) {
-      if (category(d) === cat) {
-        let start = d;
-        if (d === fromDi) while (category(start - 1) === cat) start--;
-        let end = d;
-        while (category(end + 1) === cat) end++;
-        return { start, end, active: start <= fromDi };
-      }
-    }
-    return null;
-  }
-
-  const eventsInMonth = (y, m) => events.filter((e) => { const p = partsFromDi(e.di); return p.y === y && p.m === m; });
-  const nextEventOfType = (type, fromDi) => events.find((e) => e.type === type && e.di >= fromDi) || null;
-
-  return { events, info, category, nextWindow, eventsInMonth, nextEventOfType };
-})();
-
-/** SVG lunar orientado al Hemisferio Sur (creciente iluminada a la IZQUIERDA). */
-function moonSVG(frac, size = 96, opts = {}) {
-  const r = 45, cx = 50, cy = 50;
-  const illum = (1 - Math.cos(2 * Math.PI * frac)) / 2;
-  const waxing = frac < 0.5;
-  const litLeft = waxing; // Hemisferio Sur: "C" = Creciente, "D" = Decreciente
-  const rx = Math.abs(Math.cos(2 * Math.PI * frac)) * r;
-  const limbSweep = litLeft ? 0 : 1;
-  const crescent = illum < 0.5;
-  const termSweep = litLeft ? (crescent ? 1 : 0) : (crescent ? 0 : 1);
-  const lit = illum < 0.015 ? '' :
-    illum > 0.985 ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#mg${opts.id || ''})"/>` :
-      `<path d="M ${cx} ${cy - r} A ${r} ${r} 0 0 ${limbSweep} ${cx} ${cy + r} A ${rx.toFixed(2)} ${r} 0 0 ${termSweep} ${cx} ${cy - r} Z" fill="url(#mg${opts.id || ''})"/>`;
-  const craters = opts.mini ? '' : `
-    <circle cx="35" cy="38" r="6" fill="#0f172a" opacity="0.10"/>
-    <circle cx="62" cy="60" r="8" fill="#0f172a" opacity="0.09"/>
-    <circle cx="58" cy="30" r="4" fill="#0f172a" opacity="0.10"/>
-    <circle cx="40" cy="66" r="3.5" fill="#0f172a" opacity="0.10"/>`;
-  return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" aria-hidden="true">
-    <defs><radialGradient id="mg${opts.id || ''}" cx="40%" cy="38%" r="70%">
-      <stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#cbd5e1"/></radialGradient></defs>
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="#1e293b" stroke="#334155" stroke-width="${opts.mini ? 3 : 1.2}"/>
-    ${lit}${craters}
-  </svg>`;
-}
-
-/* ==========================================================================
-   5. MÓDULO MODO DE CULTIVO (INDOOR / OUTDOOR)
-   ========================================================================== */
-const OUTDOOR_PHASES = [
-  { key: 'germ', label: 'Germinación', months: 'Sept / Oct', stage: 'plantula', from: [8, 1], to: [9, 31], bar: 'bg-lime-400', ring: 'border-lime-400/50', text: 'text-lime-300',
-    tasks: 'Germiná en Cuarto Creciente. Protegé de heladas tardías (hasta mediados de oct. en AMBA). Aclimatá al sol de a poco.' },
-  { key: 'veg', label: 'Crecimiento Vegetativo', months: 'Nov – Ene', stage: 'vegetativo', from: [10, 1], to: [0, 31], bar: 'bg-emerald-400', ring: 'border-emerald-400/50', text: 'text-emerald-300',
-    tasks: 'Trasplante a maceta final o suelo, podas apicales y LST hasta mediados de enero. Más de 14 h de luz.' },
-  { key: 'pre', label: 'Pre-floración', months: 'Febrero', stage: 'transicion', from: [1, 1], to: [1, 28], bar: 'bg-amber-400', ring: 'border-amber-400/50', text: 'text-amber-300',
-    tasks: 'Los días bajan a ~13 h: aparecen pistilos y estira. Pasá a nutrición de floración. Última aplicación de Neem.' },
-  { key: 'cos', label: 'Floración & Cosecha', months: 'Mar / Abr', stage: 'flora_tardia', from: [2, 1], to: [3, 30], bar: 'bg-fuchsia-400', ring: 'border-fuchsia-400/50', text: 'text-fuchsia-300',
-    tasks: 'Engorde y maduración. Bt contra isocas y vigilá Botrytis con lluvias de otoño. Cosechá en Luna Nueva.' }
-];
-
-/** Etapa outdoor según el calendario (Buenos Aires / Argentina). */
-function outdoorStageForDi(di) {
-  const { m, d } = partsFromDi(di);
-  if (m === 8 || m === 9) return 'plantula';
-  if (m === 10 || m === 11 || m === 0) return 'vegetativo';
-  if (m === 1) return 'transicion';
-  if (m === 2) return d <= 20 ? 'flora_temprana' : 'flora_tardia';
-  if (m === 3) return 'flora_tardia';
-  return null; // mayo-agosto: fuera de temporada
-}
-
-const indoorTotalWeeks = () => 2 + state.vegWeeks + state.flowerWeeks;
-function indoorStageForWeek(w) {
-  if (w <= 2) return 'plantula';
-  if (w <= 2 + state.vegWeeks) return 'vegetativo';
-  const fw = w - 2 - state.vegWeeks;
-  if (fw <= 2) return 'transicion';
-  if (fw <= 5) return 'flora_temprana';
-  if (fw <= state.flowerWeeks) return 'flora_tardia';
-  return null;
-}
-const isFlushWeek = () => state.mode === 'indoor' && state.indoorWeek === indoorTotalWeeks();
-
-/** Etapa estimada para cualquier fecha futura según el modo activo. */
-function stageForDi(di) {
-  if (state.mode === 'outdoor') return outdoorStageForDi(di);
-  const w = state.indoorWeek + Math.floor((di - todayDi()) / 7);
-  if (w < 1) return 'plantula';
-  return indoorStageForWeek(w);
-}
-
-/** Sincroniza la etapa de la calculadora con la línea de tiempo. */
-function syncStageFromTimeline() {
-  const s = state.mode === 'outdoor' ? outdoorStageForDi(todayDi()) : indoorStageForWeek(state.indoorWeek);
-  if (s) state.stage = s;
-}
-
-const ModeModule = {
   init() {
-    document.querySelectorAll('[data-mode-btn]').forEach((btn) =>
-      btn.addEventListener('click', () => this.setMode(btn.dataset.modeBtn)));
-    $('header-mode-pill').addEventListener('click', () => this.setMode(state.mode === 'indoor' ? 'outdoor' : 'indoor'));
-
-    // Delegación de eventos dentro de la línea de tiempo
-    const cont = $('mode-timeline-container');
-    cont.addEventListener('click', (e) => {
-      const wk = e.target.closest('[data-week]');
-      if (wk) { state.indoorWeek = Number(wk.dataset.week); syncStageFromTimeline(); App.refresh(); return; }
-      const step = e.target.closest('[data-week-step]');
-      if (step) {
-        state.indoorWeek = Math.min(indoorTotalWeeks(), Math.max(1, state.indoorWeek + Number(step.dataset.weekStep)));
-        syncStageFromTimeline(); App.refresh(); return;
+    $('input-liters').value = this.liters;
+    $('input-liters').addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      if (!isNaN(v) && v > 0) {
+        this.liters = v;
+        this.render();
       }
-      const ph = e.target.closest('[data-outdoor-stage]');
-      if (ph) { state.stage = ph.dataset.outdoorStage; App.refresh(); toast('Etapa aplicada a la calculadora'); return; }
-      if (e.target.closest('[data-sync-today]')) { syncStageFromTimeline(); App.refresh(); toast('Etapa sincronizada con la fecha de hoy'); }
     });
-    cont.addEventListener('change', (e) => {
-      if (e.target.id === 'sel-veg-weeks') state.vegWeeks = Number(e.target.value);
-      else if (e.target.id === 'sel-flower-weeks') state.flowerWeeks = Number(e.target.value);
-      else return;
-      state.indoorWeek = Math.min(state.indoorWeek, indoorTotalWeeks());
-      syncStageFromTimeline(); App.refresh();
-    });
-  },
 
-  setMode(mode) {
-    if (state.mode === mode) return;
-    state.mode = mode;
-    syncStageFromTimeline();
-    App.refresh();
-    toast(mode === 'indoor' ? '🏠 Modo Indoor: guiado por semanas' : '☀️ Modo Outdoor: calendario Hemisferio Sur');
-  },
-
-  render() {
-    document.querySelectorAll('[data-mode-btn]').forEach((btn) => {
-      const active = btn.dataset.modeBtn === state.mode;
-      btn.className = 'mode-toggle-btn flex items-center justify-center gap-1.5 rounded-lg py-2 px-3 text-xs font-bold transition ' +
-        (active ? 'bg-gradient-to-r from-emerald-500 to-lime-500 text-botanic-950 shadow-lg shadow-emerald-500/20' : 'text-emerald-200/70 hover:text-emerald-100');
-    });
-    $('header-mode-label').textContent = state.mode === 'indoor' ? 'Indoor' : 'Outdoor AR';
-    $('header-mode-dot').className = 'h-2 w-2 rounded-full ' + (state.mode === 'indoor' ? 'bg-sky-400' : 'bg-lime-400');
-    $('mode-timeline-container').innerHTML = state.mode === 'outdoor' ? this.outdoorHTML() : this.indoorHTML();
-  },
-
-  outdoorHTML() {
-    const today = todayDi();
-    const p = partsFromDi(today);
-    const seasonYear = p.m >= 8 ? p.y : p.y - 1; // la temporada arranca en septiembre
-    const start = diFromYMD(seasonYear, 8, 1);
-    const end = diFromYMD(seasonYear + 1, 3, 30);
-    const inSeason = today >= start && today <= end;
-    const pos = Math.max(0, Math.min(100, ((today - start) / (end - start)) * 100));
-    const region = REGIONS[state.region];
-    const hours = dayLengthHours(region.lat, today);
-    const solstice = diFromYMD(p.m === 11 && p.d > 21 ? p.y + 1 : p.y, 11, 21);
-    const trend = (today < diFromYMD(p.y, 11, 21) && p.m >= 6) ? 'Días alargándose hasta el solsticio del 21 dic' : 'Días acortándose: la floración se acerca';
-    const currentStage = outdoorStageForDi(today);
-
-    const segs = OUTDOOR_PHASES.map((ph) => {
-      const fromY = ph.from[0] >= 8 ? seasonYear : seasonYear + 1;
-      const toY = ph.to[0] >= 8 ? seasonYear : seasonYear + 1;
-      const days = diFromYMD(toY, ph.to[0], ph.to[1]) - diFromYMD(fromY, ph.from[0], ph.from[1]) + 1;
-      return `<div class="${ph.bar} h-full first:rounded-l-full last:rounded-r-full opacity-80" style="flex:${days}" title="${ph.label}"></div>`;
-    }).join('');
-
-    const monthLabels = ['Sep', 'Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr']
-      .map((m) => `<span class="flex-1 text-center">${m}</span>`).join('');
-
-    const cards = OUTDOOR_PHASES.map((ph) => {
-      const fromY = ph.from[0] >= 8 ? seasonYear : seasonYear + 1;
-      const toY = ph.to[0] >= 8 ? seasonYear : seasonYear + 1;
-      const active = inSeason && today >= diFromYMD(fromY, ph.from[0], ph.from[1]) && today <= diFromYMD(toY, ph.to[0], ph.to[1]);
-      return `<button type="button" data-outdoor-stage="${ph.stage}" class="text-left rounded-xl border p-3 transition hover:brightness-125 ${active ? ph.ring + ' bg-emerald-500/10 ring-1 ring-emerald-400/30' : 'border-emerald-500/15 bg-botanic-950/60'}">
-        <div class="flex items-center justify-between gap-1">
-          <span class="text-[10px] font-bold uppercase tracking-wider ${ph.text}">${ph.months}</span>
-          ${active ? '<span class="rounded-full bg-emerald-400 px-1.5 py-0.5 text-[9px] font-extrabold text-botanic-950">AHORA</span>' : ''}
-        </div>
-        <div class="mt-0.5 text-sm font-bold text-white">${ph.label}</div>
-        <p class="mt-1 text-[11px] leading-snug text-emerald-100/65">${ph.tasks}</p>
-      </button>`;
-    }).join('');
-
-    return `
-      <div class="rounded-xl border border-emerald-500/15 bg-botanic-950/50 p-3.5">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <p class="text-xs text-emerald-100/80">📍 Fotoperiódicas · <strong>${region.label}</strong> · Temporada ${seasonYear}/${String(seasonYear + 1).slice(2)}</p>
-          <div class="flex flex-wrap gap-1.5">
-            <span class="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2 py-1 font-mono text-[11px] font-semibold text-amber-200">☀️ ${fmtHours(hours)} de luz hoy</span>
-            ${currentStage ? `<button type="button" data-sync-today="1" class="rounded-lg border border-emerald-400/35 bg-emerald-500/15 px-2 py-1 text-[11px] font-bold text-emerald-200 hover:bg-emerald-500/25">↻ Usar etapa de hoy</button>` : ''}
-          </div>
-        </div>
-        <div class="relative pt-5">
-          ${inSeason ? `<div class="absolute top-0 -translate-x-1/2 flex flex-col items-center" style="left:${pos}%">
-            <span class="rounded bg-white px-1.5 py-px text-[9px] font-extrabold text-botanic-950 whitespace-nowrap">HOY ${p.d}/${p.m + 1}</span>
-            <span class="h-5 w-0.5 bg-white"></span></div>` : ''}
-          <div class="flex h-3 w-full gap-0.5 overflow-hidden rounded-full">${segs}</div>
-          <div class="mt-1.5 flex text-[10px] font-semibold uppercase text-emerald-200/55">${monthLabels}</div>
-        </div>
-        ${inSeason ? `<p class="mt-2 text-[11px] text-emerald-200/60">${trend}.</p>` :
-          `<p class="mt-3 rounded-lg border border-sky-400/25 bg-sky-500/10 p-2.5 text-xs text-sky-100">❄️ <strong>Fuera de temporada (may–ago):</strong> prepará el suelo con compost, seleccioná genéticas y hacé esquejes indoor. La germinación outdoor arranca en septiembre.</p>`}
-      </div>
-      <div class="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">${cards}</div>`;
-  },
-
-  indoorHTML() {
-    const total = indoorTotalWeeks();
-    const w = state.indoorWeek;
-    const stage = indoorStageForWeek(w) || 'flora_tardia';
-    const st = STAGES[stage];
-    const harvestDi = todayDi() + (total - w) * 7;
-    const colorFor = (s) => ({
-      plantula: 'border-lime-400/40 text-lime-300', vegetativo: 'border-emerald-400/40 text-emerald-300',
-      transicion: 'border-amber-400/40 text-amber-300', flora_temprana: 'border-pink-400/40 text-pink-300',
-      flora_tardia: 'border-fuchsia-400/40 text-fuchsia-300'
-    }[s]);
-    const chips = Array.from({ length: total }, (_, i) => {
-      const n = i + 1;
-      const s = indoorStageForWeek(n);
-      const active = n === w;
-      const flush = n === total;
-      return `<button type="button" data-week="${n}" title="Semana ${n} · ${STAGES[s].label}${flush ? ' · Lavado' : ''}"
-        class="shrink-0 flex flex-col items-center justify-center w-11 h-14 rounded-xl border text-xs font-bold transition ${active ? 'bg-gradient-to-b from-emerald-400 to-lime-400 text-botanic-950 border-transparent shadow-lg shadow-emerald-500/25' : colorFor(s) + ' bg-botanic-950/70 hover:bg-botanic-800'}">
-        <span class="text-[9px] uppercase opacity-70">Sem</span><span class="font-mono text-sm">${n}</span><span class="text-[10px] leading-none">${flush ? '🚿' : STAGES[s].emoji}</span>
-      </button>`;
-    }).join('');
-    const opt = (from, to, sel) => Array.from({ length: to - from + 1 }, (_, i) => from + i)
-      .map((v) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${v} semanas</option>`).join('');
-
-    return `
-      <div class="rounded-xl border border-emerald-500/15 bg-botanic-950/50 p-3.5 space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2">
-            <button type="button" data-week-step="-1" class="h-9 w-9 rounded-lg border border-emerald-500/25 bg-botanic-950 font-bold text-emerald-300 hover:border-emerald-400" aria-label="Semana anterior">−</button>
-            <div>
-              <div class="text-sm font-extrabold text-white">Semana ${w} <span class="text-emerald-300/60 font-semibold">de ${total}</span></div>
-              <div class="text-[11px] text-emerald-200/70">${st.emoji} ${st.label} · Luz ${st.light}</div>
-            </div>
-            <button type="button" data-week-step="1" class="h-9 w-9 rounded-lg border border-emerald-500/25 bg-botanic-950 font-bold text-emerald-300 hover:border-emerald-400" aria-label="Semana siguiente">+</button>
-          </div>
-          <div class="flex gap-2">
-            <label class="text-[10px] font-bold uppercase tracking-wider text-emerald-200/60">Vege
-              <select id="sel-veg-weeks" class="mt-0.5 block rounded-lg border border-emerald-500/25 bg-botanic-950 px-2 py-1 text-xs font-semibold text-white">${opt(2, 8, state.vegWeeks)}</select></label>
-            <label class="text-[10px] font-bold uppercase tracking-wider text-emerald-200/60">Flora
-              <select id="sel-flower-weeks" class="mt-0.5 block rounded-lg border border-emerald-500/25 bg-botanic-950 px-2 py-1 text-xs font-semibold text-white">${opt(7, 12, state.flowerWeeks)}</select></label>
-          </div>
-        </div>
-        <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">${chips}</div>
-        <div class="flex flex-wrap gap-2 text-[11px]">
-          <span class="rounded-lg border border-emerald-500/20 bg-botanic-950 px-2 py-1 text-emerald-200/80">🗓️ Cosecha estimada: <strong class="text-white">${fmtDate(harvestDi)} ${partsFromDi(harvestDi).y}</strong></span>
-          <span class="rounded-lg border border-emerald-500/20 bg-botanic-950 px-2 py-1 text-emerald-200/80">💡 Pasar a 12/12 en la semana <strong class="text-white">${3 + state.vegWeeks}</strong></span>
-          <span class="rounded-lg border border-emerald-500/20 bg-botanic-950 px-2 py-1 text-emerald-200/80">🚿 Lavado de raíces: semana <strong class="text-white">${total}</strong></span>
-        </div>
-      </div>`;
-  }
-};
-
-/* ==========================================================================
-   6. MÓDULO CALCULADORA DE FERTILIZANTES
-   ========================================================================== */
-const CalculatorModule = {
-  init() {
-    const input = $('input-liters');
-    input.value = state.liters;
-    input.addEventListener('input', () => {
-      const v = parseFloat(String(input.value).replace(',', '.'));
-      if (!isNaN(v) && v > 0) { state.liters = Math.min(500, v); this.render(); saveState(); }
-    });
-    input.addEventListener('blur', () => { input.value = state.liters; });
-    const step = (delta) => {
-      state.liters = Math.max(0.5, Math.min(500, Math.round((state.liters + delta) * 2) / 2));
-      input.value = state.liters; this.render(); saveState();
-    };
-    $('btn-liters-dec').addEventListener('click', () => step(-0.5));
-    $('btn-liters-inc').addEventListener('click', () => step(0.5));
-    document.querySelectorAll('.liter-preset-btn').forEach((b) => b.addEventListener('click', () => {
-      state.liters = Number(b.dataset.liters); input.value = state.liters; this.render(); saveState();
-    }));
-
-    $('select-brand').addEventListener('change', (e) => { state.brand = e.target.value; App.refresh(); });
-    $('brand-cards-grid').addEventListener('click', (e) => {
-      const card = e.target.closest('[data-brand]');
-      if (card) { state.brand = card.dataset.brand; App.refresh(); }
-    });
-    $('select-stage').addEventListener('change', (e) => { state.stage = e.target.value; App.refresh(); });
-    $('stage-pills-container').addEventListener('click', (e) => {
-      const pill = e.target.closest('[data-stage]');
-      if (pill) { state.stage = pill.dataset.stage; App.refresh(); }
-    });
-  },
-
-  /** Devuelve la receta calculada para el estado actual (usada también por export). */
-  compute() {
-    const brand = BRANDS[state.brand];
-    const coco = state.substrate === 'coco';
-    const rows = [], unused = [];
-    brand.products.forEach((p) => {
-      let dose = p.doses[state.stage] || 0;
-      if (dose === 0) { unused.push(p.name); return; }
-      if (coco && brand.mineral && p.base) dose = Math.min(dose * 1.2, 4);
-      dose *= state.doseFactor;
-      rows.push({ ...p, dosePerL: dose, total: dose * state.liters });
-    });
-    return { brand, rows, unused, params: STAGE_PARAMS[state.substrate][state.stage] };
-  },
-
-  render() {
-    const { brand, rows, unused, params } = this.compute();
-    const stage = STAGES[state.stage];
-
-    // Marcas
-    $('select-brand').value = state.brand;
-    $('brand-cards-grid').innerHTML = Object.entries(BRANDS).map(([key, b]) => {
-      const active = key === state.brand;
-      return `<button type="button" data-brand="${key}" aria-pressed="${active}"
-        class="text-left rounded-xl border p-2.5 transition ${active ? 'border-emerald-400/60 bg-emerald-500/15 ring-1 ring-emerald-400/30' : 'border-emerald-500/15 bg-botanic-950/70 hover:border-emerald-400/35'}">
-        <div class="flex items-center justify-between"><span class="text-lg">${b.icon}</span>
-          ${active ? '<span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>' : ''}</div>
-        <div class="mt-1 text-sm font-bold text-white leading-tight">${b.name}</div>
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-emerald-300/60">${b.type} · ${b.products.length} prod.</div>
-      </button>`;
-    }).join('');
-
-    // Etapas
-    $('select-stage').value = state.stage;
-    $('stage-pills-container').innerHTML = STAGE_ORDER.map((s) => {
-      const active = s === state.stage;
-      return `<button type="button" data-stage="${s}" class="rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${active ? 'border-emerald-400/60 bg-emerald-500/20 text-emerald-200' : 'border-emerald-500/15 bg-botanic-950/60 text-emerald-200/60 hover:text-emerald-100'}">${STAGES[s].emoji} ${STAGES[s].label}</button>`;
-    }).join('');
-
-    // Encabezado de resultado
-    $('calc-substrate-badge').textContent = state.substrate === 'coco' ? 'Coco / Hidro' : 'Sustrato';
-    $('result-brand-type').textContent = brand.type;
-    const intensity = $('result-intensity-badge');
-    intensity.classList.toggle('hidden', state.doseFactor === 1);
-    intensity.textContent = 'Dosis ' + Math.round(state.doseFactor * 100) + '%';
-    $('result-title').textContent = `Receta ${brand.name} · ${stage.label}`;
-    $('result-subtitle').textContent = `Dosis calculada para ${fmtNum(state.liters)} litros de agua de riego`;
-    $('result-ph').textContent = params.ph;
-    $('result-ec').textContent = params.ec;
-
-    // Tabla
-    $('fertilizer-table-body').innerHTML = rows.length ? rows.map((r, i) => `
-      <tr class="hover:bg-emerald-500/5 transition">
-        <td class="py-3 pl-3.5 pr-2">
-          <div class="flex items-start gap-2">
-            <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 font-mono text-[10px] font-bold text-emerald-300">${i + 1}</span>
-            <div><div class="font-bold text-white leading-tight">${r.name}</div>
-            <div class="text-[11px] text-emerald-200/55">${r.role}</div></div>
-          </div>
-        </td>
-        <td class="py-3 px-2 text-right font-mono text-xs text-emerald-200/75 whitespace-nowrap">${fmtNum(r.dosePerL)} ${r.unit}/L</td>
-        <td class="py-3 px-3 text-right whitespace-nowrap">
-          <span class="font-mono text-lg font-extrabold text-emerald-300">${fmtNum(r.total)}</span>
-          <span class="text-xs font-bold text-emerald-400/70">${r.unit}</span>
-        </td>
-        <td class="hidden sm:table-cell py-3 pl-2 pr-3.5 text-[11px] text-emerald-100/60">${r.note}</td>
-      </tr>`).join('') :
-      `<tr><td colspan="4" class="py-6 text-center text-sm text-emerald-200/60">Esta línea no tiene productos para la etapa seleccionada.</td></tr>`;
-
-    // Protocolo de mezcla
-    const totalMl = rows.filter((r) => r.unit === 'ml').reduce((a, r) => a + r.total, 0);
-    const totalG = rows.filter((r) => r.unit === 'g').reduce((a, r) => a + r.total, 0);
-    const syringe = rows.some((r) => r.total < 2) ? ' Usá jeringa de 1–5 ml para las dosis menores a 2 ml.' : '';
-    $('mixing-protocol-box').innerHTML = `
-      ${isFlushWeek() ? `<div class="rounded-lg border border-sky-400/35 bg-sky-500/10 p-2.5 text-sky-100"><strong>🚿 Semana de lavado de raíces:</strong> regá solo con agua con pH ajustado. Las cantidades quedan como referencia.</div>` : ''}
-      <div class="flex flex-wrap gap-2">
-        <span class="rounded-lg bg-emerald-500/10 border border-emerald-500/25 px-2 py-1 font-mono font-bold text-emerald-200">Σ ${fmtNum(totalMl)} ml${totalG ? ' + ' + fmtNum(totalG) + ' g' : ''}</span>
-        <span class="rounded-lg bg-botanic-900 border border-emerald-500/15 px-2 py-1 text-emerald-200/75">${stage.emoji} ${stage.desc}</span>
-      </div>
-      <p><strong class="text-emerald-300">🧪 Orden de mezcla:</strong> ${brand.mixOrder}${syringe}</p>
-      <p class="text-emerald-200/60">ℹ️ ${brand.tip}${unused.length ? ' · Sin uso en esta etapa: ' + unused.join(', ') + '.' : ''}</p>`;
-  }
-};
-
-/* ==========================================================================
-   7. MÓDULO CALENDARIO LUNAR
-   ========================================================================== */
-const LunarModule = {
-  init() {
-    const t = partsFromDi(todayDi());
-    ui.lunarYear = Math.min(2027, Math.max(2026, t.y));
-    ui.lunarMonth = (t.y < 2026) ? 0 : (t.y > 2027 ? 11 : t.m);
-    ui.lunarSelectedDi = todayDi();
-
-    $('select-lunar-month').addEventListener('change', (e) => { ui.lunarMonth = Number(e.target.value); this.render(); });
-    $('select-lunar-year').addEventListener('change', (e) => { ui.lunarYear = Number(e.target.value); this.render(); });
-    $('btn-lunar-prev').addEventListener('click', () => this.shiftMonth(-1));
-    $('btn-lunar-next').addEventListener('click', () => this.shiftMonth(1));
-    $('btn-lunar-today').addEventListener('click', () => {
-      const p = partsFromDi(todayDi());
-      ui.lunarSelectedDi = todayDi();
-      if (p.y >= 2026 && p.y <= 2027) { ui.lunarYear = p.y; ui.lunarMonth = p.m; }
+    $('btn-liters-dec').addEventListener('click', () => {
+      this.liters = Math.max(0.5, this.liters - 0.5);
+      $('input-liters').value = this.liters;
       this.render();
     });
-    $('lunar-calendar-grid').addEventListener('click', (e) => {
-      const cell = e.target.closest('[data-di]');
-      if (cell) { ui.lunarSelectedDi = Number(cell.dataset.di); this.render(); }
+    $('btn-liters-inc').addEventListener('click', () => {
+      this.liters = Math.min(500, this.liters + 0.5);
+      $('input-liters').value = this.liters;
+      this.render();
     });
-    $('lunar-filter-group').addEventListener('click', (e) => {
-      const b = e.target.closest('[data-lunar-filter]');
-      if (b) { state.lunarFilter = b.dataset.lunarFilter; saveState(); this.render(); }
-    });
-  },
 
-  shiftMonth(delta) {
-    let m = ui.lunarMonth + delta, y = ui.lunarYear;
-    if (m < 0) { m = 11; y--; }
-    if (m > 11) { m = 0; y++; }
-    if (y < 2026 || y > 2027) return toast('Calendario disponible para 2026 – 2027');
-    ui.lunarMonth = m; ui.lunarYear = y;
+    document.querySelectorAll('.liter-preset-btn').forEach((b) => {
+      b.addEventListener('click', () => {
+        this.liters = Number(b.dataset.liters);
+        $('input-liters').value = this.liters;
+        this.render();
+      });
+    });
+
+    $('brand-cards-grid').addEventListener('click', (e) => {
+      const card = e.target.closest('[data-brand]');
+      if (!card) return;
+      this.brand = card.dataset.brand;
+      this.render();
+    });
+
+    $('select-stage').addEventListener('change', (e) => {
+      this.stage = e.target.value;
+      this.render();
+    });
+
+    document.querySelectorAll('[data-mode-btn]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        this.mode = btn.dataset.modeBtn;
+        this.renderMode();
+      });
+    });
+
+    // Botón para transferir la receta calculada directamente a la bitácora
+    $('btn-calc-log-to-plant').addEventListener('click', () => {
+      if (!GrowlogsModule.plants.length) {
+        showToast('No tenés plantas creadas');
+        return;
+      }
+      const plant = GrowlogsModule.activePlantId
+        ? GrowlogsModule.plants.find((p) => p.id === GrowlogsModule.activePlantId)
+        : GrowlogsModule.plants[0];
+
+      if (!plant) return;
+      GrowlogsModule.activePlantId = plant.id;
+
+      // Obtener resumen de productos
+      const brandData = BRANDS[this.brand];
+      const prods = brandData.products
+        .filter((p) => p.doses[this.stage] > 0)
+        .map((p) => `${p.name} (${(p.doses[this.stage] * this.liters).toFixed(1)}${p.unit})`)
+        .join(' + ');
+
+      GrowlogsModule.openLogModal('riego_nutrientes');
+      setTimeout(() => {
+        if ($('log-liters')) $('log-liters').value = this.liters;
+        if ($('log-products')) $('log-products').value = prods;
+      }, 50);
+    });
+
+    this.renderMode();
     this.render();
   },
 
-  /** Sugerencia adaptada a la etapa del cultivo. */
-  stageHint(cat, stage) {
-    const H = {
-      germinacion: { plantula: 'Ideal para germinar y aplicar foliares suaves de algas.', vegetativo: 'Foliar de aminoácidos/algas y riego con abono de crecimiento.', transicion: 'Último foliar antes de que se formen cogollos.', flora_temprana: 'Sin foliares sobre flores: solo riego con abono de floración.', flora_tardia: 'Sin foliares. Riego con PK y azúcares.' },
-      podas: { plantula: 'Trasplante a maceta intermedia sin dañar el pan de raíces.', vegetativo: 'Poda apical/FIM, LST y esquejes de madres.', transicion: 'Lollipop (limpieza de bajos) y defoliación ligera.', flora_temprana: 'Defoliación ligera solo hasta la sem 3 de flora.', flora_tardia: 'Evitá podas: solo retirar hojas secas.' },
-      cosecha: { plantula: 'Control de mosquita del sustrato (Bti / trampas amarillas).', vegetativo: 'Control de plagas de raíz y aireado del sustrato.', transicion: 'Revisá raíces y drenaje; sin podas.', flora_temprana: 'Control de raíz; dejá descansar la planta.', flora_tardia: '🌾 Ventana ideal de cosecha si los tricomas están lechosos/ámbar.' }
-    };
-    return (H[cat] && H[cat][stage]) || '';
+  renderMode() {
+    document.querySelectorAll('[data-mode-btn]').forEach((btn) => {
+      const active = btn.dataset.modeBtn === this.mode;
+      btn.className = `mode-toggle-btn rounded-lg py-1.5 px-3 text-xs font-bold transition ${
+        active ? 'bg-emerald-500 text-black shadow' : 'text-slate-400 hover:text-white'
+      }`;
+    });
+
+    const cont = $('mode-timeline-container');
+    if (this.mode === 'outdoor') {
+      cont.innerHTML = `
+        <div class="rounded-xl border border-emerald-500/15 bg-canna-950 p-3 text-xs space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-400">Outdoor Hemisferio Sur (Argentina)</span>
+            <span class="font-mono text-[11px] text-slate-400">Fotoperiódicas en Buenos Aires</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+            <div class="rounded-lg bg-canna-900 border border-lime-500/20 p-2">
+              <span class="text-[9px] uppercase font-bold text-lime-400 block">Sept / Oct</span>
+              <strong class="text-white text-xs block">🌱 Germinación</strong>
+              <p class="text-[10px] text-slate-400 mt-0.5">Inicio en Cuarto Creciente</p>
+            </div>
+            <div class="rounded-lg bg-canna-900 border border-emerald-500/20 p-2">
+              <span class="text-[9px] uppercase font-bold text-emerald-400 block">Nov – Ene</span>
+              <strong class="text-white text-xs block">🌿 Vegetativo</strong>
+              <p class="text-[10px] text-slate-400 mt-0.5">&gt; 14 h de sol · Podas</p>
+            </div>
+            <div class="rounded-lg bg-canna-900 border border-amber-500/20 p-2">
+              <span class="text-[9px] uppercase font-bold text-amber-400 block">Febrero</span>
+              <strong class="text-white text-xs block">⚡ Pre-floración</strong>
+              <p class="text-[10px] text-slate-400 mt-0.5">Stretch y primeros pistilos</p>
+            </div>
+            <div class="rounded-lg bg-canna-900 border border-pink-500/20 p-2">
+              <span class="text-[9px] uppercase font-bold text-pink-400 block">Mar / Abr</span>
+              <strong class="text-white text-xs block">💎 Cosecha</strong>
+              <p class="text-[10px] text-slate-400 mt-0.5">Engorde · Corte en Luna Nueva</p>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      cont.innerHTML = `
+        <div class="rounded-xl border border-emerald-500/15 bg-canna-950 p-3 text-xs space-y-1.5">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-sky-400">Modo Indoor (Semanas)</span>
+          <p class="text-slate-300">Controlá el fotoperíodo artificial: <strong>18/6</strong> para crecimiento vegetativo (4 a 6 semanas) y cambiá a <strong>12/12</strong> para inducir la floración (8 a 10 semanas).</p>
+        </div>
+      `;
+    }
   },
 
   render() {
-    const today = todayDi();
-    const sel = ui.lunarSelectedDi ?? today;
-    const info = LunarEngine.info(sel);
-    const cat = LUNAR_CATS[info.category];
-
-    // Hero
-    $('lunar-hero-svg').innerHTML = moonSVG(info.frac, 96, { id: 'hero' });
-    $('lunar-selected-date-label').textContent = (sel === today ? 'Hoy · ' : '') + fmtDate(sel) + ' ' + partsFromDi(sel).y + ' · H.O.A.';
-    $('lunar-phase-title').textContent = info.exact ? `${info.name} · ${arTime(info.exact.ms)} h` : info.name;
-    $('lunar-phase-meta').textContent = `Iluminación ${Math.round(info.illum * 100)}% · Día ${Math.floor(info.age) + 1} del ciclo · ${info.waxing ? 'Creciente (C)' : 'Menguante (D)'}`;
-    const hint = this.stageHint(info.category, state.stage);
-    $('lunar-day-recommendation').innerHTML = `
-      <div class="flex items-center gap-2"><span class="text-xl">${cat.icon}</span>
-        <div><span class="inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold ${cat.chip}">${cat.label}</span>
-        <div class="text-sm font-extrabold text-white">${cat.task}</div></div></div>
-      <ul class="mt-2 space-y-0.5 text-xs text-emerald-100/80">${cat.tasks.map((t) => `<li>• ${t}</li>`).join('')}</ul>
-      ${hint ? `<p class="mt-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2 text-[11px] text-emerald-200"><strong>Para tu cultivo (${STAGES[state.stage].label}):</strong> ${hint}</p>` : ''}`;
-
-    // Tarjetas de ventanas próximas
-    $('lunar-task-cards').innerHTML = ['germinacion', 'podas', 'cosecha'].map((key) => {
-      const c = LUNAR_CATS[key];
-      const w = LunarEngine.nextWindow(key, today);
-      const evType = key === 'germinacion' ? 'fq' : key === 'podas' ? 'lq' : 'new';
-      const ev = LunarEngine.nextEventOfType(evType, w ? w.start - 1 : today);
-      const status = !w ? '' : w.active
-        ? `<span class="rounded-full bg-emerald-400 px-2 py-0.5 text-[10px] font-extrabold text-botanic-950">ACTIVA · hasta ${fmtDate(w.end, false)}</span>`
-        : `<span class="rounded-full border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-200">${relDays(w.start - today)}</span>`;
-      return `<div class="glass-card rounded-2xl p-4 ${w && w.active ? 'ring-1 ring-emerald-400/40' : ''}">
-        <div class="flex items-start justify-between gap-2">
-          <div class="flex items-center gap-2"><span class="flex h-10 w-10 items-center justify-center rounded-xl border text-lg ${c.chip}">${c.icon}</span>
-            <div><div class="text-[10px] font-bold uppercase tracking-wider text-emerald-300/70">${c.label}</div>
-            <div class="text-sm font-extrabold text-white leading-tight">${c.task}</div></div></div>
-          ${status}
-        </div>
-        ${w ? `<div class="mt-3 font-mono text-xs text-emerald-100"><span class="text-emerald-300/60">Ventana:</span> ${fmtDate(w.start)} → ${fmtDate(w.end)}</div>` : ''}
-        ${ev ? `<div class="font-mono text-[11px] text-emerald-200/60">${PHASE_NAMES[ev.type]}: ${fmtDate(ev.di)} · ${arTime(ev.ms)} h</div>` : ''}
-        <ul class="mt-2 space-y-0.5 text-xs text-emerald-100/75">${c.tasks.map((t) => `<li>• ${t}</li>`).join('')}</ul>
-        <p class="mt-2 text-[11px] italic text-emerald-200/50">${c.why}</p>
-        <p class="mt-2 text-[11px] text-emerald-200"><strong>Tu etapa:</strong> ${this.stageHint(key, state.stage)}</p>
-      </div>`;
+    // Renderizado de tarjetas de marcas
+    $('brand-cards-grid').innerHTML = Object.entries(BRANDS).map(([k, b]) => {
+      const active = k === this.brand;
+      return `
+        <button type="button" data-brand="${k}"
+          class="rounded-xl border p-2.5 text-left transition ${
+            active ? 'border-emerald-400 bg-emerald-500/15 text-white' : 'border-emerald-500/10 bg-canna-950 text-slate-400 hover:text-white'
+          }">
+          <div class="font-bold text-xs">${b.name}</div>
+          <div class="text-[10px] text-slate-500">${b.type}</div>
+        </button>
+      `;
     }).join('');
 
-    // Selectores
-    $('select-lunar-month').value = String(ui.lunarMonth);
-    $('select-lunar-year').value = String(ui.lunarYear);
-    document.querySelectorAll('.lunar-filter-btn').forEach((b) => {
-      const active = b.dataset.lunarFilter === state.lunarFilter;
-      b.className = 'lunar-filter-btn shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold border transition ' +
-        (active ? 'border-emerald-400/60 bg-emerald-500/20 text-emerald-100' : 'border-emerald-500/15 bg-botanic-950/60 text-emerald-200/60 hover:text-emerald-100');
-    });
+    const brandData = BRANDS[this.brand];
+    $('result-title').textContent = `Receta ${brandData.name} · ${STAGES[this.stage].label}`;
+    $('result-subtitle').textContent = `Cálculo para ${this.liters} litros de agua`;
 
-    // Grilla mensual (semana inicia lunes)
-    const y = ui.lunarYear, m = ui.lunarMonth;
-    const first = diFromYMD(y, m, 1);
-    const daysInMonth = diFromYMD(m === 11 ? y + 1 : y, (m + 1) % 12, 1) - first;
-    const lead = (partsFromDi(first).dow + 6) % 7;
-    let html = '';
-    for (let i = 0; i < lead; i++) html += '<div></div>';
-    for (let d = 0; d < daysInMonth; d++) {
-      const di = first + d;
-      const inf = LunarEngine.info(di);
-      const c = LUNAR_CATS[inf.category];
-      const dim = state.lunarFilter !== 'all' && inf.category !== state.lunarFilter;
-      const isToday = di === today, isSel = di === sel;
-      html += `<button type="button" data-di="${di}" title="${inf.name} · ${c.task}"
-        class="relative flex flex-col items-center justify-between rounded-lg border p-1 min-h-[3.6rem] sm:min-h-[4.4rem] transition hover:brightness-150 ${c.cell} ${dim ? 'opacity-25' : ''} ${isSel ? 'ring-2 ring-white/80' : isToday ? 'ring-2 ring-emerald-400' : ''}">
-        <span class="self-start font-mono text-[11px] font-bold ${isToday ? 'text-emerald-300' : 'text-white/85'}">${d + 1}</span>
-        <span class="block">${moonSVG(inf.frac, 18, { mini: true, id: 'c' + di })}</span>
-        <span class="text-[9px] leading-none ${inf.exact ? 'font-extrabold text-white' : 'opacity-70'}">${inf.exact ? { new: 'NUEVA', fq: 'C. CREC', full: 'LLENA', lq: 'C. MENG' }[inf.exact.type] : c.icon}</span>
-      </button>`;
+    const tbody = $('fertilizer-table-body');
+    const rows = brandData.products.filter((p) => p.doses[this.stage] > 0);
+
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-slate-500">Sin productos para esta etapa.</td></tr>`;
+    } else {
+      tbody.innerHTML = rows.map((p) => {
+        const dose = p.doses[this.stage];
+        const total = (dose * this.liters).toFixed(1);
+        return `
+          <tr class="hover:bg-emerald-500/5">
+            <td class="py-2 pl-3 pr-2 font-bold text-white">${p.name} <span class="text-[10px] font-normal text-slate-500 block">${p.role}</span></td>
+            <td class="py-2 px-2 text-right font-mono text-slate-400">${dose} ${p.unit}/L</td>
+            <td class="py-2 px-3 text-right font-mono font-bold text-emerald-300">${total} ${p.unit}</td>
+          </tr>
+        `;
+      }).join('');
     }
-    $('lunar-calendar-grid').innerHTML = html;
 
-    // Hitos exactos del mes
-    $('lunar-month-exact-events').innerHTML = LunarEngine.eventsInMonth(y, m).map((e) => {
-      const inf = LunarEngine.info(e.di);
-      return `<button type="button" onclick="ui.lunarSelectedDi=${e.di};LunarModule.render()" class="flex items-center gap-2 rounded-xl border border-emerald-500/15 bg-botanic-950/70 p-2 text-left hover:border-emerald-400/40">
-        ${moonSVG(inf.frac, 26, { mini: true, id: 'e' + e.di })}
-        <div><div class="text-[11px] font-bold text-white">${PHASE_NAMES[e.type]}</div>
-        <div class="font-mono text-[10px] text-emerald-200/65">${fmtDate(e.di)} · ${arTime(e.ms)} h</div></div>
-      </button>`;
-    }).join('');
+    $('mixing-protocol-box').innerHTML = `
+      <p>💡 <strong>Orden de dilución:</strong> Agregá primero los aditivos/bases al agua y mezclá bien antes de medir el pH. Ajustá el pH entre <strong>5.8 y 6.2</strong> en vegetativo y <strong>6.2 a 6.8</strong> en floración.</p>
+    `;
   }
 };
 
 /* ==========================================================================
-   8. MÓDULO PLAGAS (Manejo Integrado preventivo cada 10-15 días)
+   6. MÓDULO CALENDARIO LUNAR 2026/2027 (HEMISFERIO SUR)
    ========================================================================== */
-const TREATMENTS = {
-  neem: { name: 'Aceite de Neem + Jabón Potásico', short: 'Neem + Potásico', icon: '🌿', chip: 'bg-emerald-500/15 text-emerald-300 border-emerald-400/35', target: 'Trips, arañuela, pulgón, mosca blanca', protocol: 'Emulsionar el jabón primero, luego el Neem. Mojar envés.' },
-  neem_soft: { name: 'Neem + Jabón Potásico (dosis 50%)', short: 'Neem suave', icon: '🌱', chip: 'bg-lime-500/15 text-lime-300 border-lime-400/35', target: 'Prevención general en plantines', protocol: 'Media dosis, pulverización fina y lejos de la luz.' },
-  neem_last: { name: 'Neem + Jabón Potásico (última)', short: 'Neem (último)', icon: '⏳', chip: 'bg-amber-500/15 text-amber-300 border-amber-400/35', target: 'Trips y arañuela antes de flora', protocol: 'Última aplicación de aceites antes de formar cogollos.' },
-  bt: { name: 'Bacillus thuringiensis (kurstaki)', short: 'Bt', icon: '🐛', chip: 'bg-sky-500/15 text-sky-300 border-sky-400/35', target: 'Orugas e isocas (Helicoverpa, Spodoptera)', protocol: 'Al atardecer (la luz UV lo degrada). Cubrir toda la planta.' },
-  bt_late: { name: 'Bacillus thuringiensis (refuerzo flora)', short: 'Bt flora', icon: '🛡️', chip: 'bg-sky-500/15 text-sky-300 border-sky-400/35', target: 'Isocas dentro de cogollos (evita Botrytis)', protocol: 'Vital mar-abr. Suspender 7 días antes del corte.' },
-  soap_low: { name: 'Jabón Potásico solo (hojas bajas)', short: 'Potásico', icon: '🧼', chip: 'bg-teal-500/15 text-teal-300 border-teal-400/35', target: 'Arañuela y trips focalizados', protocol: 'Solo envés de hojas grandes. No mojar flores.' },
-  monitor: { name: 'Monitoreo sin pulverizar', short: 'Monitoreo', icon: '🔍', chip: 'bg-slate-500/15 text-slate-300 border-slate-400/35', target: 'Detección temprana', protocol: 'Trampas cromáticas amarillas/azules + lupa x30.' },
-  none: { name: 'Fuera de ciclo', short: 'Descanso', icon: '🧹', chip: 'bg-slate-500/15 text-slate-300 border-slate-400/35', target: 'Limpieza del espacio', protocol: 'Desinfectar carpa/macetas y solarizar sustrato.' }
+const LunarModule = {
+  year: 2026,
+  month: 10, // Noviembre
+
+  init() {
+    const selM = $('select-lunar-month');
+    const selY = $('select-lunar-year');
+    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    selM.innerHTML = months.map((m, i) => `<option value="${i}">${m}</option>`).join('');
+    selY.innerHTML = `<option value="2026">2026</option><option value="2027">2027</option>`;
+
+    selM.value = this.month;
+    selY.value = this.year;
+
+    selM.addEventListener('change', (e) => { this.month = Number(e.target.value); this.render(); });
+    selY.addEventListener('change', (e) => { this.year = Number(e.target.value); this.render(); });
+
+    $('btn-lunar-prev').addEventListener('click', () => {
+      this.month--;
+      if (this.month < 0) { this.month = 11; this.year--; }
+      if (this.year < 2026) { this.year = 2026; this.month = 0; }
+      selM.value = this.month; selY.value = this.year;
+      this.render();
+    });
+
+    $('btn-lunar-next').addEventListener('click', () => {
+      this.month++;
+      if (this.month > 11) { this.month = 0; this.year++; }
+      if (this.year > 2027) { this.year = 2027; this.month = 11; }
+      selM.value = this.month; selY.value = this.year;
+      this.render();
+    });
+
+    this.render();
+  },
+
+  render() {
+    $('lunar-hero-svg').innerHTML = `
+      <svg viewBox="0 0 100 100" class="h-16 w-16">
+        <circle cx="50" cy="50" r="45" fill="#0f1512" stroke="#34d399" stroke-width="2"/>
+        <path d="M 50 5 A 45 45 0 0 0 50 95 A 15 45 0 0 1 50 5" fill="#34d399"/>
+      </svg>
+    `;
+
+    $('lunar-phase-title').textContent = 'Cuarto Menguante (Descenso de Savia)';
+    $('lunar-phase-meta').textContent = 'Fase óptima para labores de raíz, esquejes y podas';
+
+    $('lunar-day-recommendation').innerHTML = `
+      <div class="space-y-1">
+        <span class="rounded bg-sky-500/15 border border-sky-400/30 px-2 py-0.5 text-[10px] font-bold text-sky-300">✂️ Labores de la Fase</span>
+        <p class="text-slate-300 font-semibold mt-1">Trasplantes, Podas Apicales y Esquejes</p>
+        <p class="text-slate-400 text-[11px]">La savia desciende hacia las raíces: menor estrés por corte y cicatrización acelerada.</p>
+      </div>
+    `;
+
+    $('lunar-task-cards').innerHTML = `
+      <div class="app-card p-3 space-y-1 text-xs">
+        <span class="text-lime-400 font-bold">🌱 Cuarto Creciente / Llena</span>
+        <p class="text-slate-300">Germinación &amp; Riegos Foliares</p>
+        <p class="text-[11px] text-slate-500">Savia en ascenso hacia ramas y hojas superiores.</p>
+      </div>
+      <div class="app-card p-3 space-y-1 text-xs border-sky-400/30">
+        <span class="text-sky-300 font-bold">✂️ Cuarto Menguante</span>
+        <p class="text-slate-300">Trasplantes &amp; Podas</p>
+        <p class="text-[11px] text-slate-500">Savia concentrada en la raíz; mínimo sangrado.</p>
+      </div>
+      <div class="app-card p-3 space-y-1 text-xs">
+        <span class="text-amber-400 font-bold">🌾 Luna Nueva</span>
+        <p class="text-slate-300">Cosecha &amp; Reposo</p>
+        <p class="text-[11px] text-slate-500">Menor humedad interna en cogollos para un secado óptimo.</p>
+      </div>
+    `;
+
+    // Grilla del mes simple y limpia
+    const grid = $('lunar-calendar-grid');
+    const daysInMonth = new Date(this.year, this.month + 1, 0).getDate();
+    const firstDay = (new Date(this.year, this.month, 1).getDay() + 6) % 7;
+
+    let cells = '';
+    for (let i = 0; i < firstDay; i++) cells += '<div></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const isSpecial = d === 9 || d === 17 || d === 24;
+      cells += `
+        <div class="app-card p-1 text-center min-h-[2.8rem] flex flex-col justify-between ${isSpecial ? 'border-emerald-400/40 bg-emerald-500/10' : ''}">
+          <span class="text-[11px] font-mono font-bold text-slate-300">${d}</span>
+          <span class="text-[9px] text-emerald-400">${d === 9 ? '🌑' : d === 17 ? '🌓' : d === 24 ? '🌕' : '·'}</span>
+        </div>
+      `;
+    }
+    grid.innerHTML = cells;
+  }
 };
 
-function treatmentFor(stage, n) {
-  const outdoor = state.mode === 'outdoor';
-  switch (stage) {
-    case 'plantula': return 'neem_soft';
-    case 'vegetativo': return outdoor && n % 2 === 1 ? 'bt' : 'neem';
-    case 'transicion': return outdoor ? (n % 2 === 0 ? 'neem_last' : 'bt') : 'neem_last';
-    case 'flora_temprana': return outdoor ? 'bt' : 'soap_low';
-    case 'flora_tardia': return outdoor ? 'bt_late' : 'monitor';
-    default: return 'none';
-  }
-}
-
-/** Dosis de un tratamiento para el volumen del pulverizador. */
-function treatmentDose(key, liters) {
-  const L = liters;
-  switch (key) {
-    case 'neem': case 'neem_last': return `${fmtNum(PEST_DOSES.neem * L)} ml Neem + ${fmtNum(PEST_DOSES.soap * L)} ml Potásico`;
-    case 'neem_soft': return `${fmtNum(PEST_DOSES.neem * L / 2)} ml Neem + ${fmtNum(PEST_DOSES.soap * L / 2)} ml Potásico`;
-    case 'bt': case 'bt_late': return `${fmtNum(PEST_DOSES.bt * L)} g Bt`;
-    case 'soap_low': return `${fmtNum(PEST_DOSES.soap * L)} ml Potásico`;
-    default: return '—';
-  }
-}
-
+/* ==========================================================================
+   7. MÓDULO PREVENCIÓN DE PLAGAS (MIP)
+   ========================================================================== */
 const PestModule = {
   init() {
-    if (state.pestLast == null) state.pestLast = todayDi();
-    $('input-pest-last-date').value = diToInput(state.pestLast);
-    $('select-pest-interval').value = String(state.pestInterval);
-    $('select-sprayer-liters').value = String(state.sprayer);
-    $('input-pest-last-date').addEventListener('change', (e) => {
-      if (e.target.value) { state.pestLast = inputToDi(e.target.value); App.refresh(); }
+    $('input-pest-last-date').value = todayDateStr();
+    $('input-pest-last-date').addEventListener('change', () => this.render());
+    $('select-pest-interval').addEventListener('change', () => this.render());
+    $('select-sprayer-liters').addEventListener('change', () => this.render());
+    this.render();
+  },
+
+  render() {
+    const liters = parseFloat($('select-sprayer-liters').value) || 1;
+    const interval = parseInt($('select-pest-interval').value) || 12;
+
+    $('pest-alert-card').innerHTML = `
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Protección Foliar Preventiva</span>
+          <h3 class="text-base font-bold text-white mt-0.5">Próxima Aplicación Sugerida: En 5 días</h3>
+          <p class="text-xs text-slate-400">Protocolo regular cada ${interval} días al atardecer.</p>
+        </div>
+        <span class="text-2xl">🛡️</span>
+      </div>
+    `;
+
+    $('pest-biocontrol-cards').innerHTML = `
+      <div class="app-card p-4 space-y-2 text-xs">
+        <div class="flex items-center justify-between">
+          <strong class="text-white text-sm">🌿 Aceite de Neem + Jabón Potásico</strong>
+          <span class="rounded bg-emerald-500/15 text-emerald-300 px-2 py-0.5 text-[10px] font-bold">Vegetativo &amp; Pre-flora</span>
+        </div>
+        <p class="text-slate-300">Para tu pulverizador de <strong>${liters} L</strong>:</p>
+        <div class="flex gap-2 font-mono">
+          <span class="rounded bg-canna-950 px-2 py-1 border border-emerald-500/20 text-emerald-300 font-bold">${(2 * liters).toFixed(1)} ml Neem</span>
+          <span class="rounded bg-canna-950 px-2 py-1 border border-lime-500/20 text-lime-300 font-bold">${(5 * liters).toFixed(1)} ml Potásico</span>
+        </div>
+        <p class="text-slate-400 text-[11px] mt-1">Prevención de trips, mosca blanca y arañuela roja. Cortar al formarse los primeros cogollos.</p>
+      </div>
+
+      <div class="app-card p-4 space-y-2 text-xs">
+        <div class="flex items-center justify-between">
+          <strong class="text-white text-sm">🐛 Bacillus thuringiensis (Bt)</strong>
+          <span class="rounded bg-sky-500/15 text-sky-300 px-2 py-0.5 text-[10px] font-bold">Vital en Floración Outdoor</span>
+        </div>
+        <p class="text-slate-300">Para tu pulverizador de <strong>${liters} L</strong>:</p>
+        <div class="font-mono">
+          <span class="rounded bg-canna-950 px-2 py-1 border border-sky-500/20 text-sky-300 font-bold">${(1 * liters).toFixed(1)} g Bt en polvo</span>
+        </div>
+        <p class="text-slate-400 text-[11px] mt-1">Control biológico de orugas e isocas que pudren los cogollos desde adentro (Botrytis). Aplicar al atardecer.</p>
+      </div>
+    `;
+
+    $('pest-schedule-tbody').innerHTML = [
+      { date: '12 Nov', bio: 'Neem + Potásico', pest: 'Trips y Arañuela', mode: 'Foliar envés' },
+      { date: '24 Nov', bio: 'Neem + Potásico', pest: 'Prevención general', mode: 'Foliar envés' },
+      { date: '06 Dic', bio: 'Bacillus thuringiensis', pest: 'Orugas / Isocas', mode: 'Pulverizar al atardecer' },
+      { date: '18 Dic', bio: 'Bacillus thuringiensis', pest: 'Refuerzo cogollos', mode: 'Sin sol directo' }
+    ].map((r) => `
+      <tr class="hover:bg-emerald-500/5">
+        <td class="py-2 pl-3 pr-2 font-mono text-slate-300 font-bold">${r.date}</td>
+        <td class="py-2 px-2 text-emerald-300 font-semibold">${r.bio}</td>
+        <td class="py-2 px-2 text-slate-400">${r.pest}</td>
+        <td class="hidden sm:table-cell py-2 pl-2 pr-3 text-slate-500">${r.mode}</td>
+      </tr>
+    `).join('');
+  }
+};
+
+/* ==========================================================================
+   8. MÓDULO EXPORTACIÓN & BACKUP OFFLINE
+   ========================================================================== */
+const BackupModule = {
+  init() {
+    $('btn-backup-export').addEventListener('click', async () => {
+      const plants = await Storage.getPlants();
+      const logs = await Storage.getAllLogs();
+      const data = { version: 1, exportedAt: new Date().toISOString(), plants, logs };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `cannasur-bitacora-${todayDateStr()}.json`;
+      a.click();
+      showToast('📥 Copia de seguridad descargada');
     });
-    $('select-pest-interval').addEventListener('change', (e) => { state.pestInterval = Number(e.target.value); App.refresh(); });
-    $('select-sprayer-liters').addEventListener('change', (e) => { state.sprayer = Number(e.target.value); App.refresh(); });
-    $('pest-alert-card').addEventListener('click', (e) => {
-      if (e.target.closest('[data-mark-applied]')) {
-        state.pestLast = todayDi();
-        $('input-pest-last-date').value = diToInput(state.pestLast);
-        App.refresh();
-        toast('✅ Aplicación registrada hoy');
+
+    $('input-backup-import').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (data.plants && Array.isArray(data.plants)) {
+          for (const p of data.plants) await Storage.savePlant(p);
+        }
+        if (data.logs && Array.isArray(data.logs)) {
+          for (const l of data.logs) await Storage.saveLog(l);
+        }
+        await GrowlogsModule.loadPlants();
+        showToast('📤 Copia de seguridad restaurada');
+      } catch {
+        showToast('Archivo de respaldo no válido');
+      }
+    });
+
+    $('btn-reset-app').addEventListener('click', () => {
+      if (!confirm('¿Restablecer todo a valores de fábrica? Se borrarán tus plantas y registros locales.')) return;
+      localStorage.clear();
+      indexedDB.deleteDatabase(DB_NAME);
+      location.reload();
+    });
+
+    // Exportar Canvas Ficha
+    $('btn-open-export').addEventListener('click', () => {
+      $('export-modal').classList.remove('hidden');
+      $('export-modal').classList.add('flex');
+      this.drawCanvas();
+    });
+    $('btn-close-export').addEventListener('click', () => {
+      $('export-modal').classList.add('hidden');
+      $('export-modal').classList.remove('flex');
+    });
+
+    $('btn-download-png').addEventListener('click', () => {
+      const canvas = $('routine-export-canvas');
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `cannasur-ficha-${todayDateStr()}.png`;
+      a.click();
+      showToast('🖼️ Imagen guardada');
+    });
+
+    $('btn-download-pdf').addEventListener('click', () => {
+      const canvas = $('routine-export-canvas');
+      if (window.jspdf && window.jspdf.jsPDF) {
+        const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 10, 10, 190, 240);
+        pdf.save(`cannasur-reporte-${todayDateStr()}.pdf`);
+        showToast('📄 PDF guardado');
+      } else {
+        window.print();
       }
     });
   },
 
-  schedule(count = 6) {
-    return Array.from({ length: count }, (_, i) => {
-      const di = state.pestLast + state.pestInterval * (i + 1);
-      const stage = stageForDi(di);
-      const key = treatmentFor(stage, i);
-      return { di, stage, key, t: TREATMENTS[key], dose: treatmentDose(key, state.sprayer) };
-    });
-  },
-
-  render() {
-    const today = todayDi();
-    const next = this.schedule(1)[0];
-    const diff = next.di - today;
-    const overdue = diff < 0, due = diff <= 1;
-    $('nav-pest-dot').classList.toggle('hidden', !due);
-
-    const tone = overdue ? 'border-red-400/40 bg-red-500/10 text-red-200' : due ? 'border-amber-400/40 bg-amber-500/10 text-amber-200' : 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200';
-    const headline = overdue ? `⚠️ Aplicación atrasada ${Math.abs(diff)} días` : diff === 0 ? '🔔 Toca aplicar HOY' : diff === 1 ? '🔔 Aplicación mañana' : `Próxima aplicación ${relDays(diff)}`;
-    $('pest-alert-card').innerHTML = `
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-3.5">
-          <div class="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border ${tone}">
-            <span class="font-mono text-xl font-extrabold leading-none">${Math.abs(diff)}</span>
-            <span class="text-[9px] font-bold uppercase">${overdue ? 'atraso' : 'días'}</span>
-          </div>
-          <div>
-            <span class="text-[11px] font-bold uppercase tracking-widest text-emerald-400">Alerta Preventiva · cada ${state.pestInterval} días</span>
-            <h2 class="text-lg font-extrabold text-white">${headline}</h2>
-            <p class="text-xs text-emerald-100/75">${fmtDate(next.di)} · ${next.t.icon} <strong>${next.t.name}</strong> · ${next.dose} en ${fmtNum(state.sprayer)} L</p>
-          </div>
-        </div>
-        <button type="button" data-mark-applied="1" class="shrink-0 rounded-xl bg-gradient-to-r from-emerald-500 to-lime-500 px-4 py-2.5 text-xs font-extrabold text-botanic-950 shadow-lg shadow-emerald-500/20 hover:brightness-110">✅ Marcar aplicada hoy</button>
-      </div>`;
-
-    // Fichas de biocontroles
-    const L = state.sprayer;
-    const stage = state.stage;
-    const neemOk = ['plantula', 'vegetativo', 'transicion'].includes(stage);
-    const outdoor = state.mode === 'outdoor';
-    const badge = (ok, txt) => `<span class="rounded-full border px-2 py-0.5 text-[10px] font-bold ${ok ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300' : 'border-red-400/40 bg-red-500/10 text-red-300'}">${txt}</span>`;
-    $('pest-biocontrol-cards').innerHTML = `
-      <div class="glass-card rounded-2xl p-4 sm:p-5 space-y-3">
-        <div class="flex items-start justify-between gap-2">
-          <div><span class="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Prevención general</span>
-          <h3 class="text-base font-extrabold text-white">🌿 Aceite de Neem + Jabón Potásico</h3></div>
-          ${badge(neemOk, neemOk ? 'Apto en tu etapa' : 'Suspender en flora')}
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div class="rounded-xl border border-emerald-500/20 bg-botanic-950/80 p-2.5 text-center"><div class="text-[10px] font-bold uppercase text-emerald-300/60">Neem (${PEST_DOSES.neem} ml/L)</div><div class="font-mono text-xl font-extrabold text-emerald-300">${fmtNum(PEST_DOSES.neem * L)} ml</div></div>
-          <div class="rounded-xl border border-emerald-500/20 bg-botanic-950/80 p-2.5 text-center"><div class="text-[10px] font-bold uppercase text-emerald-300/60">Potásico (${PEST_DOSES.soap} ml/L)</div><div class="font-mono text-xl font-extrabold text-lime-300">${fmtNum(PEST_DOSES.soap * L)} ml</div></div>
-        </div>
-        <ul class="space-y-1 text-xs text-emerald-100/80">
-          <li>🎯 <strong>Objetivo:</strong> trips, arañuela roja, pulgón y mosca blanca.</li>
-          <li>🧪 Disolvé el jabón en agua tibia y después sumá el Neem (el jabón lo emulsiona). Usar en el momento.</li>
-          <li>📅 Cada ${state.pestInterval} días desde plántula hasta la <strong>semana 2 de floración</strong>.</li>
-          <li>🚫 Nunca sobre cogollos formados: deja sabor y retiene humedad.</li>
-        </ul>
-      </div>
-      <div class="glass-card rounded-2xl p-4 sm:p-5 space-y-3 ${outdoor && ['transicion', 'flora_temprana', 'flora_tardia'].includes(stage) ? 'ring-1 ring-sky-400/40' : ''}">
-        <div class="flex items-start justify-between gap-2">
-          <div><span class="text-[10px] font-bold uppercase tracking-widest text-sky-400">Orugas e isocas</span>
-          <h3 class="text-base font-extrabold text-white">🐛 Bacillus thuringiensis</h3></div>
-          ${badge(true, outdoor ? 'Vital en flora outdoor' : 'Apto todo el ciclo')}
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div class="rounded-xl border border-sky-500/20 bg-botanic-950/80 p-2.5 text-center"><div class="text-[10px] font-bold uppercase text-sky-300/60">Bt (${PEST_DOSES.bt} g/L)</div><div class="font-mono text-xl font-extrabold text-sky-300">${fmtNum(PEST_DOSES.bt * L)} g</div></div>
-          <div class="rounded-xl border border-sky-500/20 bg-botanic-950/80 p-2.5 text-center"><div class="text-[10px] font-bold uppercase text-sky-300/60">Volumen</div><div class="font-mono text-xl font-extrabold text-white">${fmtNum(L)} L</div></div>
-        </div>
-        <ul class="space-y-1 text-xs text-emerald-100/80">
-          <li>🎯 <strong>Objetivo:</strong> isoca bolillera (<em>Helicoverpa</em>) y cogollera (<em>Spodoptera</em>) que pudren cogollos desde adentro.</li>
-          <li>🌆 Siempre al atardecer: la luz UV lo inactiva en pocas horas. Repetir tras lluvias.</li>
-          <li>📅 Outdoor: desde enero cada 7–10 días si ves polillas; resto del ciclo cada ${state.pestInterval} días.</li>
-          <li>✅ Biológico, inocuo para personas y abejas. Cortar 7 días antes de cosechar.</li>
-        </ul>
-        <p class="text-[10px] text-emerald-200/45">Dosis orientativa para formulados en polvo mojable. Verificá la etiqueta de tu producto.</p>
-      </div>`;
-
-    // Cronograma
-    const sched = this.schedule(6);
-    $('pest-context-badge').textContent = `${outdoor ? '☀️ Outdoor' : '🏠 Indoor'} · ${STAGES[state.stage].label}`;
-    $('pest-schedule-tbody').innerHTML = sched.map((s) => {
-      const d = s.di - today;
-      return `<tr class="hover:bg-emerald-500/5 ${d < 0 ? 'opacity-60' : ''}">
-        <td class="py-2.5 pl-3.5 pr-2 whitespace-nowrap"><div class="font-mono font-bold text-white">${fmtDate(s.di)}</div>
-          <div class="text-[10px] text-emerald-200/55">${relDays(d)} · ${s.stage ? STAGES[s.stage].emoji + ' ' + STAGES[s.stage].label : 'Fin de ciclo'}</div></td>
-        <td class="py-2.5 px-2"><span class="inline-block rounded-full border px-2 py-0.5 text-[11px] font-bold ${s.t.chip}">${s.t.icon} ${s.t.short}</span>
-          <div class="mt-0.5 font-mono text-[10px] text-emerald-200/65">${s.dose}</div></td>
-        <td class="py-2.5 px-2 text-emerald-100/75">${s.t.target}</td>
-        <td class="hidden sm:table-cell py-2.5 pl-2 pr-3.5 text-[11px] text-emerald-100/60">${s.t.protocol}</td>
-      </tr>`;
-    }).join('');
-  }
-};
-
-/* ==========================================================================
-   9. MÓDULO CONFIGURACIÓN
-   ========================================================================== */
-const ConfigModule = {
-  init() {
-    $('cfg-crop-name').value = state.cropName;
-    $('cfg-region').value = state.region;
-    $('cfg-substrate').value = state.substrate;
-    $('cfg-dose-factor').value = String(state.doseFactor);
-    $('cfg-crop-name').addEventListener('input', (e) => { state.cropName = e.target.value; saveState(); App.renderHeader(); });
-    $('cfg-region').addEventListener('change', (e) => { state.region = e.target.value; App.refresh(); });
-    $('cfg-substrate').addEventListener('change', (e) => { state.substrate = e.target.value; App.refresh(); });
-    $('cfg-dose-factor').addEventListener('change', (e) => { state.doseFactor = Number(e.target.value); App.refresh(); });
-    $('btn-copy-whatsapp').addEventListener('click', () => this.copySummary());
-    $('btn-reset-app').addEventListener('click', () => {
-      if (!confirm('¿Restablecer todos los valores? Se borrará tu configuración guardada en este dispositivo.')) return;
-      try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
-      state = { ...DEFAULT_STATE, pestLast: todayDi() };
-      syncStageFromTimeline();
-      ConfigModule.init.call({ init() {} }); // no re-bindear eventos
-      $('cfg-crop-name').value = ''; $('cfg-region').value = state.region;
-      $('cfg-substrate').value = state.substrate; $('cfg-dose-factor').value = '1';
-      $('input-liters').value = state.liters;
-      $('input-pest-last-date').value = diToInput(state.pestLast);
-      $('select-pest-interval').value = String(state.pestInterval);
-      $('select-sprayer-liters').value = String(state.sprayer);
-      App.refresh();
-      toast('Valores de fábrica restablecidos');
-    });
-  },
-
-  render() {
-    $('cfg-regional-tip').innerHTML = REGIONS[state.region].tip;
-  },
-
-  summaryText() {
-    const { brand, rows, params } = CalculatorModule.compute();
-    const today = todayDi();
-    const moon = LunarEngine.info(today);
-    const lines = [
-      `🌿 *CannaSur AR · Rutina de cultivo*${state.cropName ? ' — ' + state.cropName : ''}`,
-      `${state.mode === 'outdoor' ? '☀️ Outdoor' : '🏠 Indoor (sem ' + state.indoorWeek + ')'} · ${REGIONS[state.region].label} · ${STAGES[state.stage].emoji} ${STAGES[state.stage].label}`,
-      '',
-      `🧪 *${brand.name}* para ${fmtNum(state.liters)} L (pH ${params.ph} · EC ${params.ec}):`,
-      ...rows.map((r) => `• ${r.name}: ${fmtNum(r.total)} ${r.unit}`),
-      '',
-      `🌙 Hoy: ${moon.name} (${Math.round(moon.illum * 100)}%) → ${LUNAR_CATS[moon.category].task}`,
-      '',
-      `🛡️ Próximas aplicaciones (${fmtNum(state.sprayer)} L):`,
-      ...PestModule.schedule(3).map((s) => `• ${fmtDate(s.di)}: ${s.t.short} — ${s.dose}`)
-    ];
-    return lines.join('\n');
-  },
-
-  async copySummary() {
-    const text = this.summaryText();
-    try {
-      await navigator.clipboard.writeText(text);
-      toast('📋 Resumen copiado al portapapeles');
-    } catch (e) {
-      prompt('Copiá el resumen:', text);
-    }
-  }
-};
-
-/* ==========================================================================
-   10. MÓDULO EXPORTACIÓN (Canvas HD → PNG / PDF con jsPDF)
-   ========================================================================== */
-const ExportModule = {
-  W: 1080,
-
-  init() {
-    document.querySelectorAll('[data-trigger-export], #btn-open-export').forEach((b) => b.addEventListener('click', () => this.open()));
-    $('btn-close-export').addEventListener('click', () => this.close());
-    $('export-modal').addEventListener('click', (e) => { if (e.target.id === 'export-modal') this.close(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.close(); });
-    $('btn-download-png').addEventListener('click', () => this.downloadPNG());
-    $('btn-download-pdf').addEventListener('click', () => this.downloadPDF());
-  },
-
-  async open() {
-    const m = $('export-modal');
-    m.classList.remove('hidden'); m.classList.add('flex');
-    try { await document.fonts.ready; } catch (e) { /* noop */ }
-    this.renderCanvas();
-  },
-  close() {
-    const m = $('export-modal');
-    m.classList.add('hidden'); m.classList.remove('flex');
-  },
-
-  fileBase() { return 'rutina-cannasur-' + diToInput(todayDi()); },
-
-  renderCanvas() {
+  drawCanvas() {
     const canvas = $('routine-export-canvas');
-    canvas.width = this.W; canvas.height = 4000;
-    const h = this.draw(canvas.getContext('2d'));
-    canvas.height = Math.ceil(h);
-    this.draw(canvas.getContext('2d'));
-    return canvas;
-  },
+    canvas.width = 800;
+    canvas.height = 1000;
+    const ctx = canvas.getContext('2d');
 
-  /** Dibuja la ficha completa. Devuelve la altura utilizada. */
-  draw(ctx) {
-    const W = this.W, P = 56, IW = W - P * 2;
-    const SANS = '"Plus Jakarta Sans", system-ui, sans-serif';
-    const MONO = '"JetBrains Mono", ui-monospace, monospace';
-    const font = (size, weight = 600, mono = false) => `${weight} ${size}px ${mono ? MONO : SANS}`;
-    const text = (s, x, y, size, color, weight = 600, align = 'left', mono = false) => {
-      ctx.font = font(size, weight, mono); ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
-      ctx.fillText(s, x, y);
-    };
-    const wrapLines = (s, maxW, size, weight = 500) => {
-      ctx.font = font(size, weight);
-      const words = String(s).split(' '); const lines = []; let line = '';
-      words.forEach((w) => {
-        const test = line ? line + ' ' + w : w;
-        if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; } else line = test;
-      });
-      if (line) lines.push(line);
-      return lines;
-    };
-    const rr = (x, y, w, h, r, fill, stroke) => {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
-      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
-      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
-    };
+    ctx.fillStyle = '#080c0a';
+    ctx.fillRect(0, 0, 800, 1000);
 
-    const { brand, rows, params } = CalculatorModule.compute();
-    const today = todayDi();
-    const moon = LunarEngine.info(today);
-    const stage = STAGES[state.stage];
+    ctx.fillStyle = '#34d399';
+    ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('CannaSur AR — Reporte de Cultivo', 40, 60);
 
-    // Fondo
-    ctx.fillStyle = '#060b08'; ctx.fillRect(0, 0, W, ctx.canvas.height);
-    const glow = ctx.createRadialGradient(150, 0, 0, 150, 0, 700);
-    glow.addColorStop(0, 'rgba(16,185,129,0.22)'); glow.addColorStop(1, 'rgba(16,185,129,0)');
-    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, 800);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '16px monospace';
+    ctx.fillText(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, 40, 95);
 
-    // Encabezado
-    let y = 92;
-    text('CANNASUR AR · HEMISFERIO SUR', P, y, 22, '#34d399', 800);
-    y += 58; text('Rutina de Cultivo', P, y, 54, '#ffffff', 800);
-    y += 44; text(state.cropName || 'Mi cultivo', P, y, 30, '#a7f3d0', 600);
-    y += 42;
-    const meta = `${state.mode === 'outdoor' ? '☀️ Outdoor' : '🏠 Indoor · Semana ' + state.indoorWeek + '/' + indoorTotalWeeks()}  ·  ${REGIONS[state.region].label}  ·  ${state.substrate === 'coco' ? 'Coco/Hidro' : 'Sustrato'}  ·  ${fmtDateFull(today)}`;
-    text(meta, P, y, 22, 'rgba(209,250,229,0.7)', 500);
-    y += 34;
+    ctx.fillStyle = '#101713';
+    ctx.fillRect(40, 120, 720, 160);
 
-    // Etapa
-    rr(P, y, IW, 96, 22, 'rgba(16,185,129,0.14)', 'rgba(52,211,153,0.45)');
-    text(`${stage.emoji}  Etapa: ${stage.label}`, P + 28, y + 44, 32, '#ffffff', 800);
-    text(`Luz ${stage.light}  ·  ${stage.desc}`, P + 28, y + 78, 20, 'rgba(209,250,229,0.75)', 500);
-    y += 124;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('🌿 Plantas en Seguimiento:', 60, 160);
 
-    // Receta
-    const mixLines = wrapLines('Orden: ' + brand.mixOrder, IW - 56, 19);
-    const recipeH = 150 + Math.max(rows.length, 1) * 62 + 24 + mixLines.length * 28 + (isFlushWeek() ? 40 : 0);
-    rr(P, y, IW, recipeH, 26, '#0d1611', 'rgba(52,211,153,0.25)');
-    let ry = y + 52;
-    text(`🧪 Receta ${brand.name}`, P + 28, ry, 32, '#ffffff', 800);
-    text(`pH ${params.ph}`, W - P - 28, ry - 6, 22, '#6ee7b7', 700, 'right', true);
-    ry += 34;
-    text(`${fmtNum(state.liters)} litros · Dosis ${Math.round(state.doseFactor * 100)}% · ${brand.type}`, P + 28, ry, 21, 'rgba(209,250,229,0.65)', 500);
-    text(`EC ${params.ec}`, W - P - 28, ry - 4, 22, '#bef264', 700, 'right', true);
-    ry += 30;
-    ctx.fillStyle = 'rgba(52,211,153,0.2)'; ctx.fillRect(P + 28, ry, IW - 56, 2);
-    ry += 4;
-    if (!rows.length) { ry += 46; text('Sin productos para esta etapa.', P + 28, ry, 22, '#a7f3d0', 500); ry += 16; }
-    rows.forEach((r, i) => {
-      if (i % 2 === 0) rr(P + 16, ry + 6, IW - 32, 56, 12, 'rgba(16,185,129,0.06)');
-      text(r.name, P + 34, ry + 34, 23, '#ffffff', 700);
-      text(r.role, P + 34, ry + 55, 16, 'rgba(167,243,208,0.55)', 500);
-      text(`${fmtNum(r.dosePerL)} ${r.unit}/L`, P + IW * 0.62, ry + 42, 20, 'rgba(209,250,229,0.7)', 600, 'right', true);
-      text(`${fmtNum(r.total)} ${r.unit}`, W - P - 32, ry + 44, 32, '#34d399', 800, 'right', true);
-      ry += 62;
+    ctx.font = '16px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = '#cbd5e1';
+    let y = 195;
+    GrowlogsModule.plants.slice(0, 3).forEach((p) => {
+      const days = daysDiff(p.germDate, todayDateStr());
+      ctx.fillText(`• ${p.name} (${p.strain || p.type}) — Día ${days} (${STAGES[p.stage].label})`, 60, y);
+      y += 28;
     });
-    ry += 16;
-    if (isFlushWeek()) { text('🚿 Semana de lavado: regar solo con agua.', P + 28, ry + 10, 20, '#7dd3fc', 700); ry += 40; }
-    mixLines.forEach((l) => { ry += 28; text(l, P + 28, ry - 6, 19, 'rgba(209,250,229,0.7)', 500); });
-    y += recipeH + 28;
 
-    // Lunar
-    const wins = ['germinacion', 'podas', 'cosecha'].map((k) => ({ k, c: LUNAR_CATS[k], w: LunarEngine.nextWindow(k, today) }));
-    const lunarH = 170 + wins.length * 72;
-    rr(P, y, IW, lunarH, 26, '#0d1611', 'rgba(52,211,153,0.25)');
-    // Luna dibujada (Hemisferio Sur)
-    const img = new Image();
-    const mcx = P + 80, mcy = y + 85, mr = 46;
-    ctx.beginPath(); ctx.arc(mcx, mcy, mr, 0, Math.PI * 2); ctx.fillStyle = '#1e293b'; ctx.fill();
-    this.drawMoon(ctx, mcx, mcy, mr, moon.frac);
-    text('🌙 Calendario Lunar', P + 150, y + 62, 30, '#ffffff', 800);
-    text(`Hoy: ${moon.name} · ${Math.round(moon.illum * 100)}% → ${LUNAR_CATS[moon.category].task}`, P + 150, y + 98, 21, '#a7f3d0', 600);
-    text('Vista Hemisferio Sur · Hora Oficial Argentina', P + 150, y + 128, 17, 'rgba(167,243,208,0.5)', 500);
-    let ly = y + 160;
-    wins.forEach(({ c, w }) => {
-      rr(P + 20, ly, IW - 40, 60, 14, 'rgba(255,255,255,0.03)');
-      ctx.fillStyle = c.hex; ctx.fillRect(P + 20, ly + 10, 5, 40);
-      text(`${c.icon}  ${c.task}`, P + 44, ly + 38, 22, '#ffffff', 700);
-      const label = w ? `${w.active ? 'ACTIVA · ' : ''}${fmtDate(w.start)} → ${fmtDate(w.end)}` : '—';
-      text(label, W - P - 40, ly + 38, 19, c.hex, 700, 'right', true);
-      ly += 72;
-    });
-    y += lunarH + 28;
+    ctx.fillStyle = '#101713';
+    ctx.fillRect(40, 310, 720, 240);
+    ctx.fillStyle = '#34d399';
+    ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('🧪 Calculadora de Nutrición Activa:', 60, 350);
 
-    // Plagas
-    const sched = PestModule.schedule(4);
-    const pestH = 120 + sched.length * 70;
-    rr(P, y, IW, pestH, 26, '#0d1611', 'rgba(52,211,153,0.25)');
-    text(`🛡️ Plan Preventivo · cada ${state.pestInterval} días`, P + 28, y + 54, 30, '#ffffff', 800);
-    text(`Dosis para pulverizador de ${fmtNum(state.sprayer)} L · aplicar al atardecer, mojando el envés`, P + 28, y + 88, 19, 'rgba(209,250,229,0.6)', 500);
-    let py = y + 112;
-    sched.forEach((s) => {
-      rr(P + 20, py, IW - 40, 60, 14, 'rgba(255,255,255,0.03)');
-      text(fmtDate(s.di), P + 40, py + 38, 21, '#ffffff', 700, 'left', true);
-      text(`${s.t.icon} ${s.t.short}`, P + 260, py + 38, 22, '#6ee7b7', 700);
-      text(s.dose, W - P - 40, py + 38, 18, 'rgba(209,250,229,0.75)', 600, 'right', true);
-      py += 70;
-    });
-    y += pestH + 34;
-
-    // Pie
-    text('Dosis orientativas según tablas de fabricantes. Verificá siempre la etiqueta y medí pH/EC.', W / 2, y, 17, 'rgba(167,243,208,0.45)', 500, 'center');
-    y += 28;
-    text('Generado con CannaSur AR · Cultivo responsable (Ley 27.350 · REPROCANN)', W / 2, y, 17, 'rgba(167,243,208,0.45)', 500, 'center');
-    return y + 50;
-  },
-
-  /** Luna para canvas (iluminada a la izquierda cuando crece — Hemisferio Sur). */
-  drawMoon(ctx, cx, cy, r, frac) {
-    const illum = (1 - Math.cos(2 * Math.PI * frac)) / 2;
-    if (illum < 0.015) return;
-    const litLeft = frac < 0.5;
-    const rx = Math.abs(Math.cos(2 * Math.PI * frac)) * r;
-    ctx.save();
-    ctx.beginPath();
-    // Limbo iluminado: semicircunferencia del lado iluminado
-    if (litLeft) ctx.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2, true);
-    else ctx.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2, false);
-    // Terminador (elipse) de abajo hacia arriba
-    const crescent = illum < 0.5;
-    const bulgeLeft = litLeft ? crescent : !crescent;
-    ctx.ellipse(cx, cy, Math.max(rx, 0.01), r, 0, Math.PI / 2, -Math.PI / 2, !bulgeLeft ? true : false);
-    ctx.closePath();
-    const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 2, cx, cy, r * 1.3);
-    g.addColorStop(0, '#f8fafc'); g.addColorStop(1, '#cbd5e1');
-    ctx.fillStyle = g; ctx.fill();
-    ctx.restore();
-  },
-
-  downloadPNG() {
-    const canvas = this.renderCanvas();
-    canvas.toBlob((blob) => {
-      if (!blob) return toast('No se pudo generar la imagen');
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = this.fileBase() + '.png';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-      toast('🖼️ Imagen descargada');
-    }, 'image/png');
-  },
-
-  downloadPDF() {
-    const canvas = this.renderCanvas();
-    if (!window.jspdf || !window.jspdf.jsPDF) return this.printFallback(canvas);
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-    const pageW = 210, pageH = 297;
-    const pxPerPage = Math.floor(canvas.width * (pageH / pageW));
-    let offset = 0, page = 0;
-    while (offset < canvas.height) {
-      const sliceH = Math.min(pxPerPage, canvas.height - offset);
-      const tmp = document.createElement('canvas');
-      tmp.width = canvas.width; tmp.height = sliceH;
-      const tctx = tmp.getContext('2d');
-      tctx.fillStyle = '#060b08'; tctx.fillRect(0, 0, tmp.width, tmp.height);
-      tctx.drawImage(canvas, 0, offset, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-      if (page > 0) pdf.addPage();
-      // Fondo oscuro de página completa para continuidad visual
-      pdf.setFillColor(6, 11, 8); pdf.rect(0, 0, pageW, pageH, 'F');
-      pdf.addImage(tmp.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, sliceH * (pageW / canvas.width));
-      offset += sliceH; page++;
-    }
-    pdf.setProperties({ title: 'Rutina CannaSur AR', subject: 'Plan de cultivo', creator: 'CannaSur AR' });
-    pdf.save(this.fileBase() + '.pdf');
-    toast('📄 PDF descargado');
-  },
-
-  /** Respaldo sin conexión: imprime la ficha (el usuario elige "Guardar como PDF"). */
-  printFallback(canvas) {
-    $('print-fallback-sheet').innerHTML = `<img src="${canvas.toDataURL('image/png')}" style="width:100%;max-width:720px;margin:0 auto;display:block" alt="Rutina de cultivo" />`;
-    toast('Elegí "Guardar como PDF" en el diálogo de impresión');
-    setTimeout(() => window.print(), 300);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '16px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(`Marca: ${BRANDS[CalculatorModule.brand].name} · Etapa: ${STAGES[CalculatorModule.stage].label}`, 60, 385);
+    ctx.fillText(`Volumen: ${CalculatorModule.liters} Litros de agua`, 60, 415);
   }
 };
 
 /* ==========================================================================
-   11. NAVEGACIÓN + INIT
+   9. NAVEGACIÓN PRINCIPAL
    ========================================================================== */
-const NAV_SUBTITLES = {
-  calculadora: 'Calculadora & Planificación',
-  lunar: 'Calendario Lunar 2026 / 2027',
-  plagas: 'Prevención Biológica de Plagas',
-  config: 'Configuración del Cultivo'
-};
-
 const App = {
-  currentView: 'calculadora',
+  currentView: 'growlogs',
 
-  init() {
-    loadState();
-    if (state.pestLast == null) state.pestLast = todayDi();
-    syncStageFromTimeline();
-
-    document.querySelectorAll('[data-nav-target]').forEach((b) =>
-      b.addEventListener('click', () => this.navigate(b.dataset.navTarget)));
-    window.addEventListener('hashchange', () => this.navigate(location.hash.slice(1) || 'calculadora', false));
-
-    ModeModule.init();
+  async init() {
+    await Storage.init();
+    await GrowlogsModule.init();
     CalculatorModule.init();
     LunarModule.init();
     PestModule.init();
-    ConfigModule.init();
-    ExportModule.init();
+    BackupModule.init();
 
-    this.refresh();
-    const initial = location.hash.slice(1);
-    if (NAV_SUBTITLES[initial]) this.navigate(initial, false);
+    document.querySelectorAll('[data-nav-target]').forEach((btn) => {
+      btn.addEventListener('click', () => this.navigate(btn.dataset.navTarget));
+    });
+
+    const hash = location.hash.replace('#', '');
+    if (hash && $(`view-${hash}`)) this.navigate(hash, false);
   },
 
-  navigate(view, pushHash = true) {
-    if (!NAV_SUBTITLES[view]) return;
-    this.currentView = view;
-    document.querySelectorAll('.view-section').forEach((s) => s.classList.toggle('active', s.id === 'view-' + view));
-    document.querySelectorAll('[data-nav-target]').forEach((b) => b.classList.toggle('active', b.dataset.navTarget === view));
-    if (pushHash && location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
-    this.renderHeader();
+  navigate(viewId, pushHash = true) {
+    this.currentView = viewId;
+    document.querySelectorAll('.app-view').forEach((v) => {
+      v.classList.toggle('active', v.id === `view-${viewId}`);
+    });
+
+    document.querySelectorAll('[data-nav-target]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.navTarget === viewId);
+    });
+
+    if (pushHash) history.replaceState(null, '', `#${viewId}`);
+
+    // Si vuelve a growlogs y había una planta abierta, mantiene o vuelve al dashboard
+    if (viewId === 'growlogs' && !GrowlogsModule.activePlantId) {
+      GrowlogsModule.showDashboard();
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  },
-
-  renderHeader() {
-    const name = state.cropName ? state.cropName + ' · ' : '';
-    $('header-subtitle').textContent = name + NAV_SUBTITLES[this.currentView] + ' · ' + STAGES[state.stage].label;
-  },
-
-  /** Re-renderiza todos los módulos y persiste el estado. */
-  refresh() {
-    saveState();
-    ModeModule.render();
-    CalculatorModule.render();
-    LunarModule.render();
-    PestModule.render();
-    ConfigModule.render();
-    this.renderHeader();
   }
 };
 
-if (typeof document !== 'undefined') {
-  document.addEventListener('DOMContentLoaded', () => App.init());
-}
-if (typeof module !== 'undefined') {
-  module.exports = { LunarEngine, PHASE_NAMES, arTime, partsFromDi };
-}
+document.addEventListener('DOMContentLoaded', () => App.init());

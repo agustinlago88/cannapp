@@ -1,16 +1,20 @@
 /* ==========================================================================
-   CannaSur AR — Calculadora & Asistente de Cultivo (Hemisferio Sur)
-   Estilos personalizados complementarios a Tailwind CSS
+   CannaSur AR — Estilos Minimalistas Mobile-First (Growlogs & Asistente)
+   Inspirado en diseño tipo "Grow with Jane" / Linear: sobrio, táctil y oscuro.
    ========================================================================== */
 
 :root {
-  --bg-deep: #060b08;
-  --bg-surface: #0d1611;
-  --bg-elevated: #132019;
-  --border-subtle: rgba(52, 211, 153, 0.14);
-  --border-strong: rgba(52, 211, 153, 0.35);
+  --bg-app: #080c0a;
+  --bg-card: #0f1512;
+  --bg-card-hover: #141c18;
+  --bg-input: #0a0e0c;
+  --border-subtle: rgba(52, 211, 153, 0.12);
+  --border-focus: rgba(52, 211, 153, 0.45);
   --accent-emerald: #10b981;
+  --accent-neon: #00ff87;
   --accent-lime: #84cc16;
+  --text-main: #f1f5f3;
+  --text-muted: #8da195;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -21,74 +25,226 @@
 
 html {
   scroll-behavior: smooth;
-  background-color: var(--bg-deep);
-  color: #ecfdf5;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
 body {
-  background-color: var(--bg-deep);
-  background-image:
-    radial-gradient(circle at 15% 0%, rgba(16, 185, 129, 0.12) 0%, transparent 42%),
-    radial-gradient(circle at 88% 12%, rgba(132, 204, 22, 0.08) 0%, transparent 36%),
-    radial-gradient(circle at 50% 100%, rgba(16, 185, 129, 0.07) 0%, transparent 45%);
-  background-attachment: fixed;
+  background-color: var(--bg-app);
+  color: var(--text-main);
   min-height: 100dvh;
   overflow-x: hidden;
-  padding-bottom: calc(5.5rem + var(--safe-bottom));
+  padding-bottom: calc(5rem + var(--safe-bottom));
 }
 
-/* Superficies tipo cristal oscuro botánico */
-.glass-card {
-  background: linear-gradient(165deg, rgba(16, 28, 21, 0.92) 0%, rgba(10, 18, 14, 0.95) 100%);
+/* Superficies Minimalistas */
+.app-card {
+  background-color: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-radius: 1rem;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.glass-card-highlight {
-  background: linear-gradient(155deg, rgba(16, 185, 129, 0.13) 0%, rgba(13, 23, 18, 0.96) 65%);
-  border: 1px solid var(--border-strong);
-  box-shadow: 0 14px 36px -12px rgba(16, 185, 129, 0.18), inset 0 1px 0 rgba(52, 211, 153, 0.15);
+.app-card:hover {
+  border-color: rgba(52, 211, 153, 0.25);
 }
 
-/* Navegación inferior con soporte Safe Area iOS/Android */
-.bottom-nav-shell {
-  padding-bottom: max(0.5rem, var(--safe-bottom));
-  background: rgba(8, 14, 11, 0.9);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border-top: 1px solid rgba(52, 211, 153, 0.16);
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
+.app-card-active {
+  background-color: #121b16;
+  border-color: rgba(52, 211, 153, 0.4);
+  box-shadow: 0 4px 20px -8px rgba(16, 185, 129, 0.2);
 }
 
-.nav-tab-btn {
+/* Inputs & Controles Táctiles (Optimizado para dedos en el cultivo) */
+.touch-input {
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  min-height: 2.875rem;
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.875rem;
+  font-size: 0.9375rem;
+  transition: all 0.15s ease;
+}
+
+.touch-input:focus {
+  outline: none;
+  border-color: var(--accent-emerald);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.touch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  min-height: 2.875rem;
+  border-radius: 0.75rem;
+  padding: 0.65rem 1.125rem;
+  transition: all 0.12s ease;
+  user-select: none;
+  cursor: pointer;
+}
+
+.touch-btn:active {
+  transform: scale(0.98);
+}
+
+/* Botón Primario Verde Esmeralda */
+.btn-primary {
+  background-color: var(--accent-emerald);
+  color: #040906;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+}
+
+.btn-primary:hover {
+  background-color: #34d399;
+}
+
+/* Botón Secundario / Contorno */
+.btn-secondary {
+  background-color: rgba(16, 185, 129, 0.08);
+  border: 1px solid var(--border-subtle);
+  color: #a7f3d0;
+}
+
+.btn-secondary:hover {
+  background-color: rgba(16, 185, 129, 0.16);
+  border-color: var(--border-focus);
+}
+
+/* Bottom Navigation Bar (Dock Nativo PWA) */
+.bottom-dock {
+  background: rgba(9, 14, 11, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(52, 211, 153, 0.14);
+  padding-bottom: max(0.4rem, var(--safe-bottom));
+}
+
+.dock-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.25rem;
+  color: #64748b;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
   position: relative;
-  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.nav-tab-btn.active {
+.dock-btn.active {
   color: #34d399;
 }
 
-.nav-tab-btn.active .nav-pill {
-  background: rgba(16, 185, 129, 0.16);
-  border-color: rgba(52, 211, 153, 0.35);
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+.dock-btn .dock-icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 1.75rem;
+  border-radius: 0.625rem;
+  margin-bottom: 0.15rem;
+  transition: all 0.15s ease;
 }
 
-/* Animación suave de cambio de vista */
-.view-section {
+.dock-btn.active .dock-icon-box {
+  background-color: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+}
+
+/* Timeline Vertical de Bitácora */
+.timeline-track {
+  position: relative;
+}
+
+.timeline-track::before {
+  content: '';
+  position: absolute;
+  top: 1.5rem;
+  bottom: 1.5rem;
+  left: 1.25rem;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(52, 211, 153, 0.3) 0%, rgba(52, 211, 153, 0.1) 100%);
+  border-radius: 9999px;
+}
+
+.timeline-node {
+  position: relative;
+  padding-left: 3rem;
+}
+
+.timeline-pin {
+  position: absolute;
+  left: 0.45rem;
+  top: 1rem;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0f1512;
+  border: 2px solid var(--accent-emerald);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
+  font-size: 0.75rem;
+  z-index: 2;
+}
+
+/* Modales & Bottom Sheets */
+.modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: opacity 0.2s ease;
+}
+
+.modal-sheet {
+  background-color: #0d1310;
+  border: 1px solid var(--border-subtle);
+  border-radius: 1.5rem 1.5rem 0 0;
+  max-height: 90dvh;
+  overflow-y: auto;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8);
+  animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 640px) {
+  .modal-sheet {
+    border-radius: 1.25rem;
+    max-height: 85vh;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Vistas de la aplicación */
+.app-view {
   display: none;
-  animation: viewFadeIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.view-section.active {
+.app-view.active {
   display: block;
+  animation: viewFade 0.18s ease-out;
 }
 
-@keyframes viewFadeIn {
+@keyframes viewFade {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -96,7 +252,54 @@ body {
   }
 }
 
-/* Ocultar flechas nativas en inputs numéricos */
+/* Chips / Badges de Etapas */
+.stage-badge-plantula {
+  background: rgba(132, 204, 22, 0.14);
+  color: #bef264;
+  border: 1px solid rgba(132, 204, 22, 0.3);
+}
+
+.stage-badge-vegetativo {
+  background: rgba(16, 185, 129, 0.14);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.stage-badge-transicion {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.stage-badge-floracion {
+  background: rgba(236, 72, 153, 0.14);
+  color: #f472b6;
+  border: 1px solid rgba(236, 72, 153, 0.3);
+}
+
+.stage-badge-cosecha {
+  background: rgba(168, 85, 247, 0.14);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+/* Scrollbars sutiles */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(52, 211, 153, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(52, 211, 153, 0.4);
+}
+
+/* Ocultar flechas numéricas */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -106,54 +309,14 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Scrollbar sutil horizontal y vertical */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: rgba(6, 11, 8, 0.6);
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(52, 211, 153, 0.25);
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(52, 211, 153, 0.45);
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* Brillo lunar */
-.moon-svg-glow {
-  filter: drop-shadow(0 0 18px rgba(226, 232, 240, 0.22));
-}
-
-/* Estilos de impresión directa como respaldo de PDF offline */
+/* Impresión */
 @media print {
   body {
-    background: #ffffff !important;
-    color: #0f172a !important;
+    background: #fff !important;
+    color: #000 !important;
     padding-bottom: 0 !important;
   }
-  header,
-  nav,
-  #export-modal,
-  .no-print {
-    display: none !important;
-  }
-  #print-fallback-sheet {
-    display: block !important;
-    color: #0f172a !important;
-    background: #ffffff !important;
-  }
-  main {
+  .bottom-dock, header, .no-print {
     display: none !important;
   }
 }
