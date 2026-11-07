@@ -276,6 +276,7 @@ const Storage = {
       strain: 'Gorilla Glue #4 (Feminizada)',
       type: 'fotoperiodica',
       medium: 'sustrato',
+      potLiters: 15,
       germDate: germDate,
       stage: 'vegetativo',
       createdAt: new Date().toISOString()
@@ -439,6 +440,21 @@ const GrowlogsModule = {
       $('plant-cover-preview-box').classList.add('hidden');
     });
 
+    // Control de tamaño de maceta y cálculo de riego en formulario de planta
+    const updatePlantPotHint = () => {
+      const pot = parseFloat($('input-plant-pot')?.value) || 15;
+      const minR = (pot * 0.1).toFixed(1);
+      const maxR = (pot * 0.15).toFixed(1);
+      if ($('plant-pot-hint')) $('plant-pot-hint').textContent = `Riego: ~${minR} - ${maxR} L`;
+    };
+    $('input-plant-pot')?.addEventListener('input', updatePlantPotHint);
+    $('plant-pot-presets')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-pot]');
+      if (!btn) return;
+      $('input-plant-pot').value = btn.dataset.pot;
+      updatePlantPotHint();
+    });
+
     // Lightbox
     $('btn-close-lightbox').addEventListener('click', () => $('lightbox-modal').classList.add('hidden'));
     $('lightbox-modal').addEventListener('click', (e) => {
@@ -483,6 +499,9 @@ const GrowlogsModule = {
       const days = daysDiff(p.germDate, todayDateStr());
       const weeks = Math.max(1, Math.floor(days / 7) + 1);
       const st = STAGES[p.stage] || STAGES.vegetativo;
+      const pot = p.potLiters || 15;
+      const minWater = (pot * 0.1).toFixed(1);
+      const maxWater = (pot * 0.15).toFixed(1);
       const logs = await Storage.getLogsByPlant(p.id);
       const lastLog = logs[0];
 
@@ -499,10 +518,12 @@ const GrowlogsModule = {
               <div class="min-w-0 flex-1">
                 <h3 class="text-base font-bold text-white tracking-tight leading-tight truncate">${esc(p.name)}</h3>
                 <p class="text-xs text-neutral-400 truncate mt-0.5">${esc(p.strain || 'Genética personalizada')}</p>
-                <div class="flex items-center gap-1.5 mt-1.5">
+                <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
                   <span class="badge-mono font-mono text-[10px]">Día ${days}</span>
                   <span class="badge-mono text-[10px] text-neutral-300">Sem ${weeks}</span>
                   <span class="${st.badgeClass} text-[10px]">${st.label}</span>
+                  <span class="badge-mono text-[10px] text-neutral-300">🪴 ${pot} L</span>
+                  <span class="badge-mono text-[10px] text-white">💧 ~${minWater}–${maxWater} L</span>
                 </div>
               </div>
             </div>
@@ -557,6 +578,9 @@ const GrowlogsModule = {
     const days = daysDiff(plant.germDate, todayDateStr());
     const weeks = Math.max(1, Math.floor(days / 7) + 1);
     const st = STAGES[plant.stage] || STAGES.vegetativo;
+    const pot = plant.potLiters || 15;
+    const minWater = (pot * 0.1).toFixed(1);
+    const maxWater = (pot * 0.15).toFixed(1);
 
     $('plant-hero-card').innerHTML = `
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -573,12 +597,16 @@ const GrowlogsModule = {
               <span class="${st.badgeClass} text-[10px]">${st.label}</span>
             </div>
             <p class="text-xs text-neutral-400 mt-0.5">${esc(plant.strain || 'Variedad de jardín')} · <span class="capitalize">${plant.type}</span></p>
-            <div class="flex items-center gap-2 mt-2 font-mono text-xs">
+            <div class="flex items-center gap-2 mt-2 font-mono text-xs flex-wrap">
               <span class="text-white font-bold">Día ${days}</span>
               <span class="text-neutral-600">·</span>
               <span class="text-neutral-300">Semana ${weeks}</span>
               <span class="text-neutral-600">·</span>
               <span class="text-neutral-400 font-sans">${plant.medium}</span>
+              <span class="text-neutral-600">·</span>
+              <span class="text-white">🪴 Maceta ${pot} L</span>
+              <span class="text-neutral-600">·</span>
+              <span class="text-neutral-300 font-sans">💧 Riego prom.: ~${minWater}–${maxWater} L</span>
             </div>
           </div>
         </div>
@@ -739,12 +767,18 @@ const GrowlogsModule = {
     });
 
     const dyn = $('dynamic-log-fields');
+    const activePlant = this.plants.find((p) => p.id === this.activePlantId);
+    const pot = activePlant?.potLiters || 15;
+    const defWater = (pot * 0.15).toFixed(1);
+    const minWater = (pot * 0.1).toFixed(1);
+    const maxWater = (pot * 0.15).toFixed(1);
+
     if (type === 'riego_agua') {
       dyn.innerHTML = `
         <div class="grid grid-cols-3 gap-2">
           <div>
             <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Litros</label>
-            <input id="log-liters" type="number" step="0.25" value="2.0" class="ios-input w-full font-mono text-xs" required />
+            <input id="log-liters" type="number" step="0.25" value="${defWater}" class="ios-input w-full font-mono text-xs" required />
           </div>
           <div>
             <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">pH</label>
@@ -755,13 +789,14 @@ const GrowlogsModule = {
             <input id="log-ec" type="number" step="0.1" placeholder="0.4" class="ios-input w-full font-mono text-xs" />
           </div>
         </div>
+        <p class="text-[10px] text-neutral-400 mt-1">💡 Riego promedio para tu maceta de ${pot} L: <strong>~${minWater} a ${maxWater} L</strong> (10% a 15% del sustrato).</p>
       `;
     } else if (type === 'riego_nutrientes') {
       dyn.innerHTML = `
         <div class="grid grid-cols-3 gap-2">
           <div>
             <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Litros</label>
-            <input id="log-liters" type="number" step="0.25" value="2.0" class="ios-input w-full font-mono text-xs" required />
+            <input id="log-liters" type="number" step="0.25" value="${defWater}" class="ios-input w-full font-mono text-xs" required />
           </div>
           <div>
             <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">pH</label>
@@ -772,6 +807,7 @@ const GrowlogsModule = {
             <input id="log-ec" type="number" step="0.1" placeholder="1.2" class="ios-input w-full font-mono text-xs" />
           </div>
         </div>
+        <p class="text-[10px] text-neutral-400 mt-1">💡 Riego promedio para tu maceta de ${pot} L: <strong>~${minWater} a ${maxWater} L</strong> (10% a 15% del sustrato).</p>
         <div>
           <label class="block text-[11px] font-semibold text-neutral-400 mb-1 uppercase">Productos de la Mezcla</label>
           <input id="log-products" type="text" placeholder="Ej: Top Bloom 3ml/L + Top Candy 2ml/L" class="ios-input w-full text-xs" />
@@ -869,6 +905,9 @@ const GrowlogsModule = {
     $('select-plant-medium').value = editPlant ? editPlant.medium : 'sustrato';
     $('input-plant-germ-date').value = editPlant ? editPlant.germDate : todayDateStr();
     $('select-plant-stage').value = editPlant ? editPlant.stage : 'vegetativo';
+    const pot = editPlant?.potLiters || 15;
+    $('input-plant-pot').value = pot;
+    if ($('plant-pot-hint')) $('plant-pot-hint').textContent = `Riego: ~${(pot * 0.1).toFixed(1)} - ${(pot * 0.15).toFixed(1)} L`;
 
     if (editPlant && editPlant.coverPhoto) {
       $('plant-cover-preview-img').src = editPlant.coverPhoto;
@@ -895,6 +934,7 @@ const GrowlogsModule = {
     const strain = $('input-plant-strain').value.trim();
     const type = $('select-plant-type').value;
     const medium = $('select-plant-medium').value;
+    const potLiters = parseFloat($('input-plant-pot').value) || 15;
     const germDate = $('input-plant-germ-date').value;
     const stage = $('select-plant-stage').value;
     const coverPhoto = $('input-plant-cover-photo').dataset.base64 || undefined;
@@ -905,6 +945,7 @@ const GrowlogsModule = {
       strain,
       type,
       medium,
+      potLiters,
       germDate,
       stage,
       coverPhoto,
@@ -1012,6 +1053,31 @@ const CalculatorModule = {
         this.render();
       });
     });
+
+    // Cálculo interactivo de riego promedio según tamaño de maceta (10% - 15%)
+    const updatePotIrrigationCalc = () => {
+      const pot = parseFloat($('calc-pot-size')?.value) || 15;
+      const qty = parseInt($('calc-plants-qty')?.value) || 1;
+      const single = (pot * 0.15).toFixed(2);
+      const total = (pot * 0.15 * qty).toFixed(1);
+      if ($('calc-pot-single-vol')) $('calc-pot-single-vol').textContent = `${single} L`;
+      if ($('calc-pot-total-vol')) $('calc-pot-total-vol').textContent = `${total} L`;
+    };
+
+    $('calc-pot-size')?.addEventListener('input', updatePotIrrigationCalc);
+    $('calc-plants-qty')?.addEventListener('input', updatePotIrrigationCalc);
+
+    $('btn-apply-pot-irrigation')?.addEventListener('click', () => {
+      const pot = parseFloat($('calc-pot-size')?.value) || 15;
+      const qty = parseInt($('calc-plants-qty')?.value) || 1;
+      const total = parseFloat((pot * 0.15 * qty).toFixed(1));
+      this.liters = total;
+      $('input-liters').value = this.liters;
+      this.render();
+      showToast(`💧 Riego calculado: ${total} L (${qty} maceta(s) de ${pot} L)`);
+    });
+
+    updatePotIrrigationCalc();
 
     $('brand-cards-grid').addEventListener('click', (e) => {
       const card = e.target.closest('[data-brand]');
@@ -1452,6 +1518,18 @@ const App = {
 
     if (viewId === 'growlogs' && !GrowlogsModule.activePlantId) {
       GrowlogsModule.showDashboard();
+    }
+
+    if (viewId === 'calculadora') {
+      const activePlant = GrowlogsModule.plants.find((p) => p.id === GrowlogsModule.activePlantId) || GrowlogsModule.plants[0];
+      if (activePlant && activePlant.potLiters && $('calc-pot-size')) {
+        $('calc-pot-size').value = activePlant.potLiters;
+        const qty = parseInt($('calc-plants-qty')?.value) || 1;
+        const single = (activePlant.potLiters * 0.15).toFixed(2);
+        const total = (activePlant.potLiters * 0.15 * qty).toFixed(1);
+        if ($('calc-pot-single-vol')) $('calc-pot-single-vol').textContent = `${single} L`;
+        if ($('calc-pot-total-vol')) $('calc-pot-total-vol').textContent = `${total} L`;
+      }
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
